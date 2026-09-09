@@ -12,13 +12,23 @@ export const I18N = {
     heroTitle: '在投出履歷前，看清日本求職網上的「幽靈與釣魚職缺」',
     heroDesc:
       '全面支援 Indeed Japan、LinkedIn、Green、Wantedly、doda、Hello Work。深度檢驗日本企業正規 ATS 採用系統、自動破解みなし残業（固定加班）數字障眼法、識別 SES 客先常駐偽裝與アットホーム黑心精神論。',
-    urlInputPlaceholder: '貼上日本職缺網址 (例如 Indeed, LinkedIn, Green, doda, Wantedly 或企業採用頁面)...',
+    urlInputPlaceholder: '貼上日本職缺網址 (例如企業採用頁面、Green、Wantedly 或 ATS 系統)...',
     urlAnalyzeBtn: '一鍵抓取並評估 🚀',
     urlAnalyzing: '正在抓取分析中...',
     uploadCsvBtn: '上傳日文 CSV 批次檢測',
     pasteTextBtn: '貼上職缺文字診斷',
     downloadSampleBtn: '下載範例 CSV',
     viewGuideBtn: '看日本都啥求職 (完整導覽)',
+
+    // Hero Dual Tab
+    heroTabPaste: '📝 貼上職缺文字分析 (推薦・支援 Indeed / LinkedIn / 任何求職網)',
+    heroTabUrl: '🔗 輸入職缺網址 (支援企業官方採用頁 / ATS)',
+    pasteInputPlaceholder: '請直接複製 Indeed / LinkedIn / 任何日本求職頁面上的文字貼在這邊（支援 Ctrl+V）...\n\n例如：\nスイーツ・洋菓子店での接客・販売スタッフ/週3日〜/1日4h〜\n株式会社プレジィール\n東京都中央区銀座\n時給 1,300円〜1,500円\n未経験歓迎、週3日〜、アットホームな職場で働きませんか？',
+    pasteAnalyzeBtn: '🚀 立即解析職缺 (秒測真實企業、薪資與幽靈風險)',
+    pasteSampleFillBtn: '✨ 帶入 Indeed 範例文字測試',
+    antiBotWarningTitle: '⚠️ 目標網站設有 Cloudflare 防爬蟲安全保護',
+    antiBotWarningDesc: 'Indeed / LinkedIn 設有嚴格的人機驗證機制，阻擋伺服器直接爬取。請直接複製網頁上的職缺文字（Ctrl+C）貼在下方，系統 1 秒即可為您精準提取公司名稱、薪資與避雷指針！',
+    switchToPasteBtn: '👉 切換至貼上職缺文字 (100% 成功)',
 
     // Spotlight & Demo Toggles
     spotlightTitle: '🎯 您剛診斷的日本職缺即時分析報告',
@@ -123,13 +133,23 @@ export const I18N = {
     heroTitle: '応募する前に見抜く。日本の「おとり求人・カラ求人・ブラック企業」',
     heroDesc:
       'Indeed Japan、LinkedIn、Green、Wantedly、doda、ハローワークに完全対応。正規採用システム (ATS) 検証、固定残業代（みなし残業）の過重労働リスク判定、SES偽装自社開発、アットホーム精神論を即座に可視化します。',
-    urlInputPlaceholder: '求人ページのURLを貼り付け (Indeed, LinkedIn, Green, doda, Wantedly, 企業採用ページ等)...',
+    urlInputPlaceholder: '求人ページのURLを貼り付け (企業の公式採用ページ、Green、Wantedly、ATS等)...',
     urlAnalyzeBtn: 'URLから自動取得して判定 🚀',
     urlAnalyzing: '取得・解析中...',
     uploadCsvBtn: 'CSV一括インポート',
     pasteTextBtn: '求人テキスト直接診断',
     downloadSampleBtn: 'サンプルCSVダウンロード',
     viewGuideBtn: '日本の求人媒体・仕組みガイド',
+
+    // Hero Dual Tab
+    heroTabPaste: '📝 求人テキスト直接貼付 (推奨・Indeed/LinkedIn等に完全対応)',
+    heroTabUrl: '🔗 求人ページURLから取得 (企業公式採用ページ/ATS対応)',
+    pasteInputPlaceholder: 'Indeed、LinkedIn、求人ボックス等の求人画面からテキストをコピー（Ctrl+C）してそのまま貼り付けてください（Ctrl+V）...\n\n例：\nスイーツ・洋菓子店での接客・販売スタッフ/週3日〜/1日4h〜\n株式会社プレジィール\n東京都中央区銀座\n時給 1,300円〜1,500円\n未経験歓迎、週3日〜、アットホームな職場で働きませんか？',
+    pasteAnalyzeBtn: '🚀 求人テキストを即座に判定する (企業名・給与・リスク自動抽出)',
+    pasteSampleFillBtn: '✨ Indeed求人サンプルを自動入力',
+    antiBotWarningTitle: '⚠️ 対象サイトはCloudflare反スクレイピング保護が有効です',
+    antiBotWarningDesc: 'IndeedやLinkedInはサーバーによる自動取得を遮断しています。お手数ですが求人画面のテキストをコピー（Ctrl+C）して貼り付けてください。1秒で瞬時に解析します！',
+    switchToPasteBtn: '👉 テキスト直接貼り付けに切り替える (100%成功)',
 
     // Spotlight & Demo Toggles
     spotlightTitle: '🎯 直近の求人診断・即時リスク判定レポート',

@@ -14,23 +14,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const platform = detectPlatformFromUrl(url);
+    const lowerUrl = url.toLowerCase();
+    const isAntiBotPlatform = lowerUrl.includes('indeed.') || lowerUrl.includes('linkedin.');
+
+    // Indeed 與 LinkedIn 在伺服器端請求時一律受 Cloudflare Turnstile / 登入驗證阻擋
+    if (isAntiBotPlatform) {
+      return NextResponse.json({
+        success: false,
+        isAntiBotBlocked: true,
+        platform,
+        url,
+        error: `${platform} 設有 Cloudflare 反爬蟲保護或動態渲染，伺服器無法直接抓取頁面內容。`,
+        suggestion: '請直接在求職網頁上複製該職缺文字（Ctrl+C），貼入「貼上職缺文字」輸入框，系統 1 秒即可為您精準提取公司名、薪資並進行避雷分析！',
+      });
+    }
+
     let jobData;
     try {
-      // 嘗試遠端讀取頁面並解析
       jobData = await scrapeJobUrl(url);
     } catch (scrapeErr: unknown) {
-      // 若受防爬蟲限制（如 403 或反爬機制），以網址特徵建立基礎診斷模型，不阻斷使用者評分
-      const platform = detectPlatformFromUrl(url);
-      const urlObj = new URL(url);
-      jobData = {
-        id: `url_${Date.now()}`,
-        title: `求職頁面分析 (${platform})`,
-        company: urlObj.hostname.replace('www.', ''),
-        applyUrl: url,
-        sourcePlatform: platform,
-        description: `從網址自動載入：${url}。\n由於目標平台 (${platform}) 設有反爬機制，系統依據網址特徵與採用系統 (ATS) 進行結構分析。`,
-        postedDate: new Date().toISOString().split('T')[0],
-      };
+      const errMsg = scrapeErr instanceof Error ? scrapeErr.message : String(scrapeErr);
+      return NextResponse.json({
+        success: false,
+        isAntiBotBlocked: true,
+        platform,
+        url,
+        error: errMsg,
+        suggestion: '該網頁無法直接公開抓取。請直接複製職缺文字貼入「貼上職缺文字」進行診斷！',
+      });
     }
 
     const analyzedResult: GhostAnalysisResult = analyzeSingleJob(jobData);

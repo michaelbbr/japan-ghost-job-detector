@@ -16,6 +16,7 @@ import { JobCard } from '@/app/components/JobCard';
 import { JobGuideModal } from '@/app/components/JobGuideModal';
 import { SingleJobModal } from '@/app/components/SingleJobModal';
 import { Language, I18N } from '@/lib/i18n';
+import { parseJapaneseJobText } from '@/lib/jobTextParser';
 
 // 日文 CSV 標題自動映射解析器
 function parseJapaneseCsv(text: string): JobInput[] {
@@ -107,6 +108,13 @@ export default function HomePage() {
   const [results, setResults] = useState<GhostAnalysisResult[]>([]);
   const [summary, setSummary] = useState<BatchSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Hero Dual Mode & Input State
+  const [heroTab, setHeroTab] = useState<'paste' | 'url'>('paste');
+  const [heroPasteText, setHeroPasteText] = useState<string>('');
+  const [isHeroPasteAnalyzing, setIsHeroPasteAnalyzing] = useState<boolean>(false);
+  const [antiBotNotice, setAntiBotNotice] = useState<string | null>(null);
+  const heroPasteTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // URL Instant Evaluation State
   const [urlInput, setUrlInput] = useState<string>('');
@@ -217,6 +225,52 @@ export default function HomePage() {
     }, 150);
   };
 
+  // Hero 職缺文字即時解析
+  const handleHeroPasteSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!heroPasteText.trim()) return;
+
+    setIsHeroPasteAnalyzing(true);
+    setUrlError(null);
+    setAntiBotNotice(null);
+
+    try {
+      const parsedJob = parseJapaneseJobText(heroPasteText);
+      const analyzed = analyzeSingleJob(parsedJob);
+      setUserJobs((prev) => [parsedJob, ...prev]);
+      setSpotlightJob(analyzed);
+      setIsDemoExpanded(false);
+      setUrlSuccess(
+        lang === 'ja'
+          ? `「${parsedJob.title}（${parsedJob.company}）」の解析に成功しました！（ゴースト指数: ${analyzed.ghostScore}点）`
+          : `成功分析「${parsedJob.title}（${parsedJob.company}）」！（幽靈風險評分: ${analyzed.ghostScore}分）`
+      );
+      setTimeout(() => {
+        spotlightRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    } catch (err: any) {
+      setUrlError(
+        err.message || (lang === 'ja' ? '解析処理中にエラーが発生しました。' : '分析時發生未知錯誤。')
+      );
+    } finally {
+      setIsHeroPasteAnalyzing(false);
+    }
+  };
+
+  const handleFillSampleText = () => {
+    const sample = `スイーツ・洋菓子店での接客・販売スタッフ/週3日〜/1日4h〜/扶養内OK
+株式会社プレジィール
+東京都中央区銀座
+時給 1,300円〜1,500円
+【仕事内容】
+店頭でのスイーツ・焼き菓子の接客販売、包装、レジ業務などをお任せします。
+未経験歓迎！先輩スタッフが丁寧にフォローします。
+アットホームな職場で働きませんか？固定残業なし、交通費全額支給。`;
+    setHeroPasteText(sample);
+    if (urlError) setUrlError(null);
+    if (antiBotNotice) setAntiBotNotice(null);
+  };
+
   // URL 一鍵抓取與分析
   const handleAnalyzeUrl = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,6 +279,7 @@ export default function HomePage() {
     setIsUrlAnalyzing(true);
     setUrlError(null);
     setUrlSuccess(null);
+    setAntiBotNotice(null);
 
     try {
       const res = await fetch('/api/analyze-url', {
@@ -235,6 +290,19 @@ export default function HomePage() {
 
       const json = await res.json();
       if (!res.ok || !json.success) {
+        if (json.isAntiBotBlocked) {
+          setAntiBotNotice(
+            lang === 'ja'
+              ? json.suggestion || 'Indeed/LinkedIn等はCloudflare防護のためサーバー取得できません。下のボタンからテキストを貼り付けてください。'
+              : json.suggestion || '目標網站設有 Cloudflare 反爬蟲保護。請點擊下方按鈕直接貼上文字解析！'
+          );
+          setUrlError(
+            lang === 'ja'
+              ? `${json.platform || '対象サイト'}は防スクレイピング制限が有効です。`
+              : `${json.platform || '目標平台'}設有反爬蟲安全保護，伺服器無法直接抓取。`
+          );
+          return;
+        }
         throw new Error(
           json.error ||
             (lang === 'ja'
@@ -400,51 +468,170 @@ export default function HomePage() {
               {t.heroDesc}
             </p>
 
-            {/* URL Instant Evaluation Bar */}
-            <div className="mt-6 p-2 sm:p-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-inner">
-              <form onSubmit={handleAnalyzeUrl} className="flex flex-col sm:flex-row gap-2">
-                <div className="relative flex-1">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔗</span>
-                  <input
-                    type="url"
+            {/* Hero Dual Mode Switcher */}
+            <div className="mt-6 flex border-b border-white/20 text-xs font-bold gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setHeroTab('paste');
+                  setUrlError(null);
+                  setUrlSuccess(null);
+                  setAntiBotNotice(null);
+                }}
+                className={`py-2 px-3 sm:px-4 rounded-t-xl transition flex items-center gap-1.5 ${
+                  heroTab === 'paste'
+                    ? 'bg-white/20 text-white border-t border-x border-white/30 backdrop-blur-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>📝</span>
+                <span>{t.heroTabPaste}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setHeroTab('url');
+                  setUrlError(null);
+                  setUrlSuccess(null);
+                  setAntiBotNotice(null);
+                }}
+                className={`py-2 px-3 sm:px-4 rounded-t-xl transition flex items-center gap-1.5 ${
+                  heroTab === 'url'
+                    ? 'bg-white/20 text-white border-t border-x border-white/30 backdrop-blur-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>🔗</span>
+                <span>{t.heroTabUrl}</span>
+              </button>
+            </div>
+
+            {/* Tab 1: Direct Job Text Paste (100% reliable for Indeed / LinkedIn / etc.) */}
+            {heroTab === 'paste' && (
+              <div className="p-3 sm:p-4 rounded-b-2xl rounded-tr-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-inner animate-fadeIn">
+                <form onSubmit={handleHeroPasteSubmit}>
+                  <textarea
+                    ref={heroPasteTextareaRef}
+                    rows={5}
                     required
-                    value={urlInput}
+                    value={heroPasteText}
                     onChange={(e) => {
-                      setUrlInput(e.target.value);
+                      setHeroPasteText(e.target.value);
                       if (urlError) setUrlError(null);
                     }}
-                    placeholder={t.urlInputPlaceholder}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 border border-transparent shadow-sm"
+                    placeholder={t.pasteInputPlaceholder}
+                    className="w-full p-3 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 border border-transparent shadow-sm font-mono leading-relaxed"
                   />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isUrlAnalyzing}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white text-xs font-black transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
-                >
-                  {isUrlAnalyzing ? (
-                    <>
-                      <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      <span>{t.urlAnalyzing}</span>
-                    </>
-                  ) : (
-                    <span>{t.urlAnalyzeBtn}</span>
-                  )}
-                </button>
-              </form>
-              {urlError && (
-                <div className="mt-2 text-xs text-rose-300 flex items-center gap-1.5 px-2">
-                  <span>⚠️</span>
-                  <span>{urlError}</span>
-                </div>
-              )}
-              {urlSuccess && (
-                <div className="mt-2 text-xs text-emerald-300 flex items-center gap-1.5 px-2">
-                  <span>✅</span>
-                  <span>{urlSuccess}</span>
-                </div>
-              )}
-            </div>
+                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={handleFillSampleText}
+                      className="px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-indigo-200 text-xs font-semibold border border-white/10 transition flex items-center gap-1"
+                    >
+                      <span>{t.pasteSampleFillBtn}</span>
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={isHeroPasteAnalyzing || !heroPasteText.trim()}
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white text-xs font-black transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
+                    >
+                      {isHeroPasteAnalyzing ? (
+                        <>
+                          <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                          <span>{t.urlAnalyzing}</span>
+                        </>
+                      ) : (
+                        <span>{t.pasteAnalyzeBtn}</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+                {urlError && (
+                  <div className="mt-2.5 text-xs text-rose-300 flex items-center gap-1.5 px-1">
+                    <span>⚠️</span>
+                    <span>{urlError}</span>
+                  </div>
+                )}
+                {urlSuccess && (
+                  <div className="mt-2.5 text-xs text-emerald-300 flex items-center gap-1.5 px-1">
+                    <span>✅</span>
+                    <span>{urlSuccess}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab 2: URL Instant Evaluation */}
+            {heroTab === 'url' && (
+              <div className="p-3 sm:p-4 rounded-b-2xl rounded-tr-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-inner animate-fadeIn">
+                <form onSubmit={handleAnalyzeUrl} className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔗</span>
+                    <input
+                      type="url"
+                      required
+                      value={urlInput}
+                      onChange={(e) => {
+                        setUrlInput(e.target.value);
+                        if (urlError) setUrlError(null);
+                        if (antiBotNotice) setAntiBotNotice(null);
+                      }}
+                      placeholder={t.urlInputPlaceholder}
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 border border-transparent shadow-sm"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isUrlAnalyzing}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white text-xs font-black transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
+                  >
+                    {isUrlAnalyzing ? (
+                      <>
+                        <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>{t.urlAnalyzing}</span>
+                      </>
+                    ) : (
+                      <span>{t.urlAnalyzeBtn}</span>
+                    )}
+                  </button>
+                </form>
+
+                {antiBotNotice && (
+                  <div className="mt-3 p-3.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-xs text-amber-200 animate-fadeIn">
+                    <div className="font-bold flex items-center gap-1.5 text-amber-300">
+                      <span>⚠️</span>
+                      <span>{t.antiBotWarningTitle}</span>
+                    </div>
+                    <p className="mt-1 text-slate-200 leading-relaxed">{antiBotNotice}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHeroTab('paste');
+                        setTimeout(() => heroPasteTextareaRef.current?.focus(), 100);
+                      }}
+                      className="mt-2.5 px-4 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs transition shadow-sm flex items-center gap-1.5"
+                    >
+                      <span>📝</span>
+                      <span>{t.switchToPasteBtn}</span>
+                    </button>
+                  </div>
+                )}
+
+                {urlError && !antiBotNotice && (
+                  <div className="mt-2 text-xs text-rose-300 flex items-center gap-1.5 px-2">
+                    <span>⚠️</span>
+                    <span>{urlError}</span>
+                  </div>
+                )}
+                {urlSuccess && (
+                  <div className="mt-2 text-xs text-emerald-300 flex items-center gap-1.5 px-2">
+                    <span>✅</span>
+                    <span>{urlSuccess}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Action buttons */}
             <div className="flex flex-wrap items-center gap-3 mt-4">
@@ -611,9 +798,9 @@ export default function HomePage() {
                   {/* Direct Action Links */}
                   <div className="mt-6 pt-5 border-t border-slate-800 space-y-2.5">
                     <div className="text-[11px] font-bold text-slate-400">
-                      💡 投遞前必查官方與口碑來源：
+                      {lang === 'ja' ? '💡 応募前セーフティ確認リンク：' : '💡 投遞前必查官方與口碑來源：'}
                     </div>
-                    {spotlightJob.openWorkUrl && (
+                    {spotlightJob.openWorkUrl ? (
                       <a
                         href={spotlightJob.openWorkUrl}
                         target="_blank"
@@ -621,8 +808,18 @@ export default function HomePage() {
                         className="w-full px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-md"
                       >
                         <span>🏢</span>
-                        <span>在 OpenWork 查詢真實評價</span>
+                        <span>
+                          {lang === 'ja'
+                            ? `OpenWorkで「${spotlightJob.company}」の口コミ・残業を見る`
+                            : `在 OpenWork 查詢「${spotlightJob.company}」真實評價`}
+                        </span>
                       </a>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-[11px] text-amber-300/90 leading-relaxed">
+                        ℹ️ {lang === 'ja'
+                          ? '法人名が特定できなかったため、OpenWork検索リンクは生成されませんでした。'
+                          : '未能識別出具體日本法人名稱，故未生成 OpenWork 搜尋連結。'}
+                      </div>
                     )}
                     {spotlightJob.googleReviewUrl && (
                       <a
@@ -632,7 +829,11 @@ export default function HomePage() {
                         className="w-full px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition border border-slate-700"
                       >
                         <span>🔍</span>
-                        <span>在 Google 搜尋該公司爭議/口碑</span>
+                        <span>
+                          {lang === 'ja'
+                            ? `Googleで「${spotlightJob.company}」の退職理由・評判検索`
+                            : `在 Google 搜尋「${spotlightJob.company}」評價口碑`}
+                        </span>
                       </a>
                     )}
                   </div>

@@ -13,15 +13,45 @@ export function cleanCompanyName(rawCompany: string): string {
     .trim();
 }
 
-// 產生 OpenWork 搜尋網址
+// 檢驗是否為無效之假公司名稱（例如網域名稱、平台名稱或防爬佔位符號）
+export function isInvalidCompany(companyName: string): boolean {
+  if (!companyName) return true;
+  const lower = companyName.toLowerCase().trim();
+  if (
+    lower.includes('.com') ||
+    lower.includes('.jp') ||
+    lower.includes('.net') ||
+    lower.includes('.org') ||
+    lower.includes('.io') ||
+    lower.includes('indeed') ||
+    lower.includes('linkedin') ||
+    lower.includes('wantedly') ||
+    lower.includes('green-japan') ||
+    lower.includes('doda') ||
+    lower.includes('rikunabi') ||
+    lower.includes('mynavi') ||
+    lower.includes('hellowork') ||
+    lower.includes('檢測之企業') ||
+    lower.includes('社名未指定') ||
+    lower.includes('社名非公開') ||
+    lower.includes('自社採用')
+  ) {
+    return true;
+  }
+  return false;
+}
+
+// 產生 OpenWork 搜尋網址（僅在真實公司名稱時生成）
 export function buildOpenWorkUrl(companyName: string): string {
-  const cleaned = cleanCompanyName(companyName) || companyName;
+  const cleaned = cleanCompanyName(companyName);
+  if (!cleaned || isInvalidCompany(cleaned)) return '';
   return `https://www.openwork.jp/company_list?field=&pref=&src_str=${encodeURIComponent(cleaned)}&sort=1`;
 }
 
-// 產生 Google 公司評價備用搜尋網址
+// 產生 Google 公司評價備用搜尋網址（僅在真實公司名稱時生成）
 export function buildGoogleReviewUrl(companyName: string): string {
-  const cleaned = cleanCompanyName(companyName) || companyName;
+  const cleaned = cleanCompanyName(companyName);
+  if (!cleaned || isInvalidCompany(cleaned)) return '';
   return `https://www.google.com/search?q=${encodeURIComponent(cleaned + ' OpenWork 評判 口コミ')}`;
 }
 
@@ -135,10 +165,28 @@ export function parseJobFromHtml(html: string, pageUrl: string): JobInput {
       $('body').text().slice(0, 1500).trim();
   }
 
+  // 檢查是否被反爬蟲 Challenge 頁面阻斷
+  if (
+    title.includes('Just a moment') ||
+    title.includes('Attention Required') ||
+    title.includes('Security Check') ||
+    title.includes('Bot Detection')
+  ) {
+    title = '';
+  }
+
+  if (isInvalidCompany(company)) {
+    company = '';
+  }
+
+  if (!title && !company) {
+    throw new Error('未能從該頁面解析出有效職缺資訊（目標網頁可能設有防爬機制或為動態渲染）。');
+  }
+
   return {
     id: `scraped_${Date.now()}`,
     title: title || '日本職缺分析',
-    company: company || '檢測之企業',
+    company: company || '日本求職企業 (未提供明確社名)',
     location: location || '',
     salary: salary || '',
     postedDate: postedDate || new Date().toISOString().split('T')[0],
@@ -168,9 +216,21 @@ export async function scrapeJobUrl(url: string): Promise<JobInput> {
   });
 
   if (!response.ok) {
-    throw new Error(`無法連線至目標頁面 (HTTP ${response.status})。該網站可能需登入或有防爬機制。`);
+    throw new Error(`無法連線至目標頁面 (HTTP ${response.status})。該網站可能需登入或設有反爬機制。`);
   }
 
   const html = await response.text();
+
+  // 偵測常見 Cloudflare / 防爬蟲驗證特徵
+  if (
+    html.includes('Just a moment...') ||
+    html.includes('Attention Required! | Cloudflare') ||
+    html.includes('cf-browser-verification') ||
+    html.includes('px-captcha') ||
+    html.includes('ShieldSquare Captcha')
+  ) {
+    throw new Error('目標網站設有 Cloudflare 反爬蟲保護，伺服器無法直接抓取頁面內容。');
+  }
+
   return parseJobFromHtml(html, url);
 }
