@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #FBFBFD;
+  color: #111827;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Existing palette, restrained report hierarchy. No new visual framework. */
+.rental-app { --line:#2d3746; --muted:#a4afbf; --surface:#121a27; --accent:#818cf8; font-family:"Yu Gothic UI","Hiragino Kaku Gothic ProN","Microsoft JhengHei",sans-serif; }
+.rental-app[data-theme="light"] { --line:#d6dce5; --muted:#526175; --surface:#fff; --accent:#4338ca; }
+.rental-app header,.rental-app footer { border-color:var(--line); }
+.rental-app :is(button,a,input,textarea,summary):focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.rental-app button:disabled { opacity:.5; cursor:not-allowed; }
+.rental-app .text-gray-400 { color:var(--muted); }
+.rental-hero h1 { line-height:1.35; }
+.rental-form > div { border-radius:10px; box-shadow:none; border-color:var(--line); }
+.rental-form button[type="submit"] { background-image:none; background-color:#4f46e5; border-radius:7px; box-shadow:none; }
+.rental-form input,.rental-form textarea,.rental-form details { border-color:var(--line); border-radius:7px; }
+.rental-form input[type="url"] { min-width:0; }
+.property-summary { border-radius:10px; box-shadow:none; border-color:var(--line); }
+.property-summary h2 { font-size:1.35rem; font-weight:650; line-height:1.45; overflow-wrap:anywhere; }
+.data-status { border-left:2px solid var(--line); padding:0 0 0 14px; color:var(--muted); }
+.report-nav { padding:0 0 12px; border-bottom:1px solid var(--line); background:transparent; }
+.report-nav button { border-radius:6px; white-space:normal; font-weight:600; min-height:44px; padding:10px 6px; box-shadow:none; font-size:.875rem; transition:none; }
+.property-facts { padding:4px 0 24px; border-bottom:1px solid var(--line); }
+.property-facts dd { font-variant-numeric:tabular-nums; }
+.score-summary { padding:20px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.score-summary-main { display:flex; align-items:center; gap:32px; }
+.overall-number { font-size:2.75rem; line-height:1.1; font-weight:650; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.overall-number span { font-size:.875rem; color:var(--muted); font-weight:400; }
+.rental-app .report-section { padding:0 0 24px; border:0; border-bottom:1px solid var(--line); border-radius:0; background:transparent; box-shadow:none; }
+.report-section h3 { font-size:1rem; font-weight:600; }
+.rating-grid > button { padding:12px 6px; gap:3px; border:1px solid var(--line); border-radius:7px; background:transparent; box-shadow:none; transform:none; }
+.rating-grid > button[aria-pressed="true"] { background:var(--surface); border-color:var(--accent); box-shadow:inset 0 2px var(--accent); }
+.rating-grid > button > div:first-child { font-size:.875rem; font-weight:600; }
+.rating-grid > button > div:nth-child(2) { width:32px; height:32px; margin:4px 0; border:0; border-radius:5px; box-shadow:none; }
+.rating-grid > button > div:nth-child(2) span { font-size:20px; transform:none; }
+.rating-grid > button > div:nth-child(2) span.font-bold { font-size:12px; }
+.rating-grid > button > div:last-child { font-size:12px; font-weight:400; }
+.rating-grid > button > div.numeric-rating { width:auto; height:auto; margin:6px 0; color:var(--accent); }
+.numeric-rating strong { font-size:1.75rem; font-weight:600; font-variant-numeric:tabular-nums; }
+.rating-grid > button > div.numeric-rating span { font-size:.8125rem; color:var(--muted); }
+.rental-app .rating-reason { padding:12px 16px; border:0; border-left:2px solid var(--accent); border-radius:0; background:var(--surface); }
+.rating-reason > div > span:first-child { font-size:.875rem; font-weight:600; letter-spacing:0; }
+.rating-reason > div > span:last-child { font-size:18px; border:0; padding:0; background:transparent; box-shadow:none; }
+.rating-reason > p { font-size:.9375rem; font-weight:400; line-height:1.7; }
+.rental-app .condition-item { border:0; border-bottom:1px solid var(--line); border-radius:0; padding:16px 0; background:transparent; }
+.rental-app .condition-item:last-child { border-bottom:0; padding-bottom:0; }
+.condition-item > div:first-child { align-items:flex-start; flex-wrap:wrap; gap:8px; }
+.condition-item > div:first-child > span:first-child { font-size:1rem; font-weight:600; }
+.condition-item > div:first-child > span:last-child { border:0; background:transparent; padding:0; font-size:.8125rem; font-weight:500; }
+.condition-item > div:not(:first-child) { font-weight:400; font-size:.9375rem; line-height:1.7; }
+.condition-item .font-bold { font-weight:500; }
+.report-section > .grid:not(.rating-grid) > div { border-radius:8px; border-color:var(--line); }
+.report-section > .grid:not(.rating-grid) p { font-size:.875rem; font-weight:400; line-height:1.7; }
+.report-section > .grid:not(.rating-grid) a { font-size:.875rem; min-height:40px; border-radius:6px; }
+@media(max-width:639px) {
+  .score-summary-main { align-items:flex-start; gap:18px; flex-wrap:wrap; }
+  .rental-app > div { padding-top:24px; }
+  .rental-app header { margin-bottom:24px; }
+  .rental-hero h1 { font-size:1.35rem; }
+  .property-summary { padding:18px; }
+  .report-section > div:first-child { gap:10px; flex-wrap:wrap; }
+  .rating-grid > button { min-height:108px; }
+}
