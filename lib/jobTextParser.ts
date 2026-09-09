@@ -148,7 +148,36 @@ export function parseJapaneseJobText(rawText: string): JobInput {
     }
   }
 
-  // 7. 最終防護清洗與合理預設值
+  // 7. 提取網址（若貼上文字中有附帶連結）
+  let applyUrl = '';
+  const urlMatch = cleanedRaw.match(/https?:\/\/[^\s\r\n"'>\)]+/i);
+  if (urlMatch) {
+    applyUrl = urlMatch[0];
+  }
+
+  // 8. 智慧提取刊登或更新日期（若文字有包含）
+  let postedDate = '';
+  const datePatterns = [
+    /(?:掲載日|更新日|募集開始日|投稿日|公表日)\s*[:：]?\s*(\d{4}[年/.-]\d{1,2}[月/.-]\d{1,2}日?)/i,
+    /(\d{4}[年/.-]\d{1,2}[月/.-]\d{1,2}日?)\s*(?:掲載|更新)/i,
+  ];
+  for (const dp of datePatterns) {
+    const m = cleanedRaw.match(dp);
+    if (m && m[1]) {
+      postedDate = m[1].replace(/[年月]/g, '-').replace(/日/g, '').trim();
+      break;
+    }
+  }
+  if (!postedDate) {
+    const relativeMatch = cleanedRaw.match(/(\d{1,2})\s*日前/);
+    if (relativeMatch) {
+      const daysAgo = parseInt(relativeMatch[1], 10);
+      const d = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+      postedDate = d.toISOString().split('T')[0];
+    }
+  }
+
+  // 9. 最終防護清洗與合理預設值
   let cleanedTitle = (title.trim() || '日本求職職缺檢測')
     .replace(/\s*[-–|/]\s*(?:job\s*post|Indeed|インディード|求人ボックス|マイナビ|リクナビ|doda).*$/i, '')
     .trim();
@@ -163,7 +192,8 @@ export function parseJapaneseJobText(rawText: string): JobInput {
     company: cleanedCompany,
     location: location.trim(),
     salary: salary.trim(),
-    postedDate: new Date().toISOString().split('T')[0],
+    postedDate, // 僅在文字中確實檢測到日期時才設定，未提供時保持空字串
+    applyUrl,
     sourcePlatform: '職缺文字直接貼上',
     description: cleanedRaw.slice(0, 4000),
   };

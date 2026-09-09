@@ -1,6 +1,7 @@
 import { detectAtsFromUrl, AtsDetectionResult } from './japanAtsDetector';
 import { scanJapanJobScams, analyzeMinashiZangyo, ScamHit } from './japanScamDictionary';
 import { buildOpenWorkUrl, buildGoogleReviewUrl } from './urlScraper';
+import { matchMajorEnterprise, MajorEnterpriseInfo } from './japanEnterpriseDirectory';
 
 export interface JobInput {
   id?: string;
@@ -21,6 +22,7 @@ export interface DuplicateInfo {
   isRepost: boolean;
   repostCount?: number;
   repostInstances?: { index: number; date: string; title: string }[];
+  isSingleMode?: boolean;
 }
 
 export interface BatchSummary {
@@ -120,9 +122,10 @@ function calculateSimilarity(str1: string, str2: string): number {
 // 批次重複與重貼檢測 (Duplicate & Repost Detection)
 export function detectBatchDuplicatesAndReposts(jobs: JobInput[]): Record<number, DuplicateInfo> {
   const result: Record<number, DuplicateInfo> = {};
+  const isSingleMode = jobs.length <= 1;
 
   jobs.forEach((_, i) => {
-    result[i] = { isDuplicate: false, isRepost: false };
+    result[i] = { isDuplicate: false, isRepost: false, isSingleMode };
   });
 
   // 1. 完全重複 (Exact normalized match)
@@ -194,6 +197,14 @@ export function analyzeSingleJob(
   const applyUrl = (job.applyUrl || '').trim();
   const description = (job.description || '').trim();
 
+  const isPasteMode =
+    job.sourcePlatform === '職缺文字直接貼上' ||
+    job.sourcePlatform?.includes('貼上') ||
+    job.sourcePlatform?.includes('テキスト') ||
+    (!applyUrl && !postedDate);
+  const isSingleJob = !dupeInfo || dupeInfo.isSingleMode === true;
+  const majorEnterprise = matchMajorEnterprise(`${title} ${company} ${description}`);
+
   let score = 0;
   const signals: SignalDetail[] = [];
   const reasons: string[] = [];
@@ -201,9 +212,29 @@ export function analyzeSingleJob(
   const caveats: string[] = [];
   const recommendations: string[] = [];
 
-  // 1. 檢測 ATS 與官網
+  // 1. 檢測企業知名度 / ATS 與官網
   const atsResult = detectAtsFromUrl(applyUrl, lang);
-  if (atsResult.isDirectEmployer) {
+  if (majorEnterprise) {
+    // 優先比對日本著名大企業・上場企業
+    signals.push({
+      id: 'ats_official',
+      name: isJa ? '企業規模 / 公式認証' : '企業規模 / 官網認證',
+      label: isJa
+        ? `大手・上場企業 (${majorEnterprise.shortName})`
+        : `知名上場・大手企業 (${majorEnterprise.shortName})`,
+      pts: 0,
+      maxPts: 25,
+      triggered: false,
+      explanation: isJa
+        ? `【${majorEnterprise.formalName}】（${majorEnterprise.stockTicker || '国内大手企業グループ'}）傘下の有力事業・ブランド求人と照合されました。主要求人媒体での企業認証や公式ページが存在し、実在性・雇用の確実性が極めて高いです。`
+        : `已比對確認為日本知名上市大型企業【${majorEnterprise.formalName}】（${majorEnterprise.stockTicker || '知名大型集團'}）旗下品牌或事業職缺。在各大求職網站皆設有法人審核認證之官方主頁，資本額雄厚，職缺實在性極高！`,
+    });
+    evidence.push(
+      isJa
+        ? `国内大手・上場企業グループとして照合成功：${majorEnterprise.formalName}`
+        : `確認為日本知名大型／上市企業旗下職缺：${majorEnterprise.formalName}`
+    );
+  } else if (atsResult.isDirectEmployer) {
     signals.push({
       id: 'ats_official',
       name: isJa ? '採用システム / 公式検証' : '採用系統 / 官網驗證',
@@ -233,13 +264,31 @@ export function analyzeSingleJob(
         ? '知名の中小企業でも求人ポータルを活用することが一般的であり、直営ATS以外が直ちに架空求人とは限りません。'
         : '許多知名中小型企業或日企習慣使用求職網站代收履歷，非正規 ATS 不代表一定是假職缺。'
     );
+  } else if (isPasteMode) {
+    // 純文字貼上模式：無網址為正常現象，不予扣分（0分中立）
+    signals.push({
+      id: 'ats_official',
+      name: isJa ? '採用窓口 / 公式検証' : '採用系統 / 官網驗證',
+      label: isJa ? 'テキスト貼付（URL未記載）' : '純文字貼上診斷（未附網址）',
+      pts: 0,
+      maxPts: 25,
+      triggered: false,
+      explanation: isJa
+        ? '求人テキスト直接貼付による診断のため、応募URLは判定対象外（減点なし・中立）としています。求人サイト上の企業公式ページや評判は、下部の「OpenWork」「Google検索」ボタンから直接ご確認いただけます。'
+        : '您採用純文字貼上模式診斷，未附帶應徵網址，本項不予扣分（0分中立）。系統已為您配置下方「OpenWork 查評價」與「Google 查口碑」，可一鍵前往該公司在求職網與官方的主頁及評價進行查證。',
+    });
+    caveats.push(
+      isJa
+        ? 'テキスト貼付モードでは直接のATS検証がスキップされるため、必要に応じて下部のリンクから企業の公式求人ページをご確認ください。'
+        : '純文字貼上模式未包含求職平台原網址，若需直接檢驗其後台 ATS 系統，建議使用網址檢測或貼上含連結的文字。'
+    );
   } else {
-    score += 25;
+    score += 15;
     signals.push({
       id: 'ats_official',
       name: isJa ? '採用システム / 公式検証' : '採用系統 / 官網驗證',
       label: isJa ? '応募先URL・公式サイトなし' : '無應徵 / 官網連結',
-      pts: 25,
+      pts: 15,
       maxPts: 25,
       triggered: true,
       explanation: isJa
@@ -366,6 +415,19 @@ export function analyzeSingleJob(
           : `刊登時間在 ${daysOld} 天內，屬於正常招聘有效週期。`,
       });
     }
+  } else if (isPasteMode) {
+    // 貼上文字未包含日期：不扣分，誠實說明
+    signals.push({
+      id: 'posting_age',
+      name: isJa ? '掲載日数・鮮度分析' : '刊登天數分析',
+      label: isJa ? '掲載日未記載 (テキスト貼付)' : '未含刊登日期 (純文字模式)',
+      pts: 0,
+      maxPts: 20,
+      triggered: false,
+      explanation: isJa
+        ? '貼り付けられたテキスト内に「掲載日」や「更新日」が含まれていませんでした。手動貼付では日付が省略されやすいため、本項目は減点対象外（中立）として処理しています。'
+        : '貼上的職缺文字未包含「掲載日」或「更新日」時間戳記。因手動複製文字多省略頁尾資訊，本項不作為幽靈扣分依據（0分中立）。',
+    });
   } else {
     score += 8;
     signals.push({
@@ -413,15 +475,30 @@ export function analyzeSingleJob(
         : `檢測到同一公司使用不同日期重複刊登同職務，為求職網站刷熱度或高離職率職缺典型特徵。`,
     });
     reasons.push(isJa ? `同一求人が異なる日付で ${count} 回再投稿されています` : `同職缺在不同日期被重複重貼 ${count} 次`);
+  } else if (isSingleJob) {
+    // 單筆診斷模式：清楚告知使用者無比對樣本
+    signals.push({
+      id: 'duplicate_check',
+      name: isJa ? '重複・再掲載チェック' : '批次重複檢測',
+      label: isJa ? '個別診断（比較対象なし）' : '單筆即時診斷（無比對樣本）',
+      pts: 0,
+      maxPts: 15,
+      triggered: false,
+      explanation: isJa
+        ? '単一求人の個別診断モードです。多重下請けや定期再投稿のクロス判定を行うには、複数件のCSVインポートまたはリスト診断をご利用ください。'
+        : '當前為單一職缺即時診斷模式。重複刊登與定時洗版比對需在包含 2 筆以上職缺的 CSV 或清單中方可進行交叉驗證。',
+    });
   } else {
     signals.push({
       id: 'duplicate_check',
       name: isJa ? '重複・再掲載チェック' : '批次重複檢測',
-      label: isJa ? '重複・再投稿なし' : '無重複或重貼',
+      label: isJa ? 'リスト内重複なし' : '同批清單無重複',
       pts: 0,
       maxPts: 15,
       triggered: false,
-      explanation: isJa ? '重複掲載や使い回しの兆候は見つかりませんでした。' : '未檢測到洗版或重複複製刊登跡象。',
+      explanation: isJa
+        ? 'インポートされたリスト内で、他求人との重複や同企業による再投稿は見つかりませんでした。'
+        : '在您匯入的批次清單中，未發現與其他職缺重疊洗版或同公司重複定時刊登的跡象。',
     });
   }
 
@@ -461,6 +538,11 @@ export function analyzeSingleJob(
     });
   }
 
+  // 大手企業・上場企業優良ボーナス（實體企業大幅減免幽靈分）
+  if (majorEnterprise) {
+    score = Math.max(0, score - 15);
+  }
+
   // 分數限制在 0 - 100
   score = Math.min(Math.max(score, 0), 100);
 
@@ -497,7 +579,13 @@ export function analyzeSingleJob(
   let confidenceText: string;
   let confidenceNote: string;
 
-  if (evidence.length >= 3 && applyUrl && description.length > 80) {
+  if (majorEnterprise) {
+    confidence = 'HIGH';
+    confidenceText = isJa ? '高（大手公式認証）' : '高 (知名企業認證)';
+    confidenceNote = isJa
+      ? `東証プライム・上場大手企業グループ「${majorEnterprise.formalName}」の公式情報と照合。求人媒体での企業認証が存在し、実在性は極めて確実です。`
+      : `已比對日本知名上市集團「${majorEnterprise.formalName}」官方資料。各大求職網站皆有經過實名審核之官方主頁，實體存在與招募真實度極高。`;
+  } else if (evidence.length >= 3 && applyUrl && description.length > 80) {
     confidence = 'HIGH';
     confidenceText = isJa ? '高（情報十分）' : '高 (資訊充分)';
     confidenceNote = isJa
