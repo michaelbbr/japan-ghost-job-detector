@@ -2,17 +2,20 @@
 
 import React, { useState } from 'react';
 import { JobInput } from '@/lib/ghostScoreEngine';
+import { Language } from '@/lib/i18n';
 
 interface SingleJobModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmitJob: (job: JobInput) => void;
+  lang?: Language;
 }
 
 export const SingleJobModal: React.FC<SingleJobModalProps> = ({
   isOpen,
   onClose,
   onSubmitJob,
+  lang = 'zh',
 }) => {
   const [mode, setMode] = useState<'form' | 'paste'>('form');
 
@@ -31,10 +34,16 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isJa = lang === 'ja';
+
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !company.trim()) {
-      alert('請至少填寫職缺名稱與企業名稱！');
+      alert(
+        isJa
+          ? '募集職種名と企業名を入力してください！'
+          : '請至少填寫職缺名稱與企業名稱！'
+      );
       return;
     }
 
@@ -54,19 +63,19 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
   const handlePasteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!rawText.trim()) {
-      alert('請貼上職缺文字內容！');
+      alert(isJa ? '求人テキストを貼り付けてください！' : '請貼上職缺文字內容！');
       return;
     }
 
     const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
-    const parsedTitle = lines[0] || '貼上職缺檢測';
-    const parsedCompany = lines[1] || '未指定企業名';
+    const parsedTitle = lines[0] || (isJa ? '直接貼付求人' : '貼上職缺檢測');
+    const parsedCompany = lines[1] || (isJa ? '企業名未指定' : '未指定企業名');
 
     onSubmitJob({
       title: parsedTitle,
       company: parsedCompany,
       description: rawText,
-      sourcePlatform: '文字直接貼上',
+      sourcePlatform: isJa ? 'テキスト貼付' : '文字直接貼上',
       postedDate: new Date().toISOString().split('T')[0],
     });
     onClose();
@@ -80,10 +89,12 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
           <div>
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <span>🔍</span>
-              <span>單筆日本職缺即時診斷</span>
+              <span>{isJa ? '求人個別診断（手動入力・テキスト貼付）' : '單筆日本職缺即時診斷'}</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              手動輸入或直接貼上日本求職網站 (Indeed / LinkedIn / Green 等) 職缺進行幽靈指數診斷
+              {isJa
+                ? '求人票の項目を入力、またはIndeed/LinkedIn/Green等の求人文を貼り付けてゴースト度を判定'
+                : '手動輸入或直接貼上日本求職網站 (Indeed / LinkedIn / Green 等) 職缺進行幽靈指數診斷'}
             </p>
           </div>
           <button
@@ -104,7 +115,7 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            標準欄位填寫
+            {isJa ? '項目別フォーム入力' : '標準欄位填寫'}
           </button>
           <button
             onClick={() => setMode('paste')}
@@ -114,7 +125,7 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            直接貼上職缺全文 (快速)
+            {isJa ? '求人テキスト直接貼付 (高速)' : '直接貼上職缺全文 (快速)'}
           </button>
         </div>
 
@@ -125,12 +136,12 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    職缺標題 / 職種 *
+                    {isJa ? '募集職種 / 求人タイトル *' : '職缺標題 / 職種 *'}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="例如: 【急募】Webエンジニア（未経験可）"
+                    placeholder={isJa ? '例: 【急募】Webエンジニア（自社開発/未経験可）' : '例如: 【急募】Webエンジニア（未經驗可）'}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
@@ -138,12 +149,12 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    企業名稱 (公司名) *
+                    {isJa ? '企業名（会社名） *' : '企業名稱 (公司名) *'}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="例如: 株式会社〇〇"
+                    placeholder={isJa ? '例: 株式会社〇〇' : '例如: 株式会社〇〇'}
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
@@ -154,11 +165,11 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    勤務地 (工作地點)
+                    {isJa ? '勤務地' : '勤務地 (工作地點)'}
                   </label>
                   <input
                     type="text"
-                    placeholder="例如: 東京都港区 / 常駐先"
+                    placeholder={isJa ? '例: 東京都港区 / プロジェクト先' : '例如: 東京都港区 / 常駐先'}
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
@@ -166,11 +177,11 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    給與 / 年薪 (含殘業說明)
+                    {isJa ? '給与・年収（残業代記載）' : '給與 / 年薪 (含殘業說明)'}
                   </label>
                   <input
                     type="text"
-                    placeholder="例如: 月給35万 (固定残業40H含)"
+                    placeholder={isJa ? '例: 月給35万（固定残業40H含）' : '例如: 月給35万 (固定残業40H含)'}
                     value={salary}
                     onChange={(e) => setSalary(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
@@ -178,7 +189,7 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    求職平台來源
+                    {isJa ? '掲載媒体・出所' : '求職平台來源'}
                   </label>
                   <select
                     value={sourcePlatform}
@@ -193,7 +204,7 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
                     <option value="リクナビNEXT">リクナビNEXT</option>
                     <option value="ビズリーチ">ビズリーチ (BizReach)</option>
                     <option value="ハローワーク">ハローワーク (Hello Work)</option>
-                    <option value="企業官網直投">企業官方網站 (Direct)</option>
+                    <option value="企業官網直投">{isJa ? '自社採用ページ (Direct)' : '企業官方網站 (Direct)'}</option>
                   </select>
                 </div>
               </div>
@@ -201,11 +212,11 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    應徵網址 (Apply URL / ATS Link)
+                    {isJa ? '応募URL・ATSリンク' : '應徵網址 (Apply URL / ATS Link)'}
                   </label>
                   <input
                     type="url"
-                    placeholder="例如: https://herp.careers/v1/..."
+                    placeholder="例: https://herp.careers/v1/..."
                     value={applyUrl}
                     onChange={(e) => setApplyUrl(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
@@ -213,7 +224,7 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    刊登日期 (Posted Date)
+                    {isJa ? '掲載日 (Posted Date)' : '刊登日期 (Posted Date)'}
                   </label>
                   <input
                     type="date"
@@ -226,11 +237,15 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  職務內容與特徵描述 (Job Description)
+                  {isJa ? '職務内容・募集要項 (Job Description)' : '職務內容與特徵描述 (Job Description)'}
                 </label>
                 <textarea
                   rows={5}
-                  placeholder="貼上職缺詳細描述（例如業務內容、応募要件、労働条件、是否包含アットホーム、夢、客先常駐等語句）..."
+                  placeholder={
+                    isJa
+                      ? '求人の詳細説明（業務内容、応募要件、労働条件、アットホーム、夢、客先常駐等のフレーズ）を記入...'
+                      : '貼上職缺詳細描述（例如業務內容、応募要件、労働条件、是否包含アットホーム、夢、客先常駐等語句）...'
+                  }
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono text-xs"
@@ -243,13 +258,13 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
                   onClick={onClose}
                   className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition"
                 >
-                  取消
+                  {isJa ? 'キャンセル' : '取消'}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-sm transition"
                 >
-                  開始偵測分析 🚀
+                  {isJa ? '解析を実行する 🚀' : '開始偵測分析 🚀'}
                 </button>
               </div>
             </form>
@@ -257,7 +272,9 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
             <form onSubmit={handlePasteSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  請將在日本網站複製的職缺內文直接貼在下方：
+                  {isJa
+                    ? '日本の求人サイトからコピーしたテキストを貼り付けてください：'
+                    : '請將在日本網站複製的職缺內文直接貼在下方：'}
                 </label>
                 <textarea
                   rows={10}
@@ -273,7 +290,9 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
                 />
               </div>
               <p className="text-[11px] text-slate-400">
-                系統將自動提取第 1 行為標題、第 2 行為公司名，並對全文進行固定加班代、客先常駐與黑心精神論掃描。
+                {isJa
+                  ? 'システムが自動で1行目を職種名、2行目を企業名と判定し、固定残業代や客先常駐・精神論をスキャンします。'
+                  : '系統將自動提取第 1 行為標題、第 2 行為公司名，並對全文進行固定加班代、客先常駐與黑心精神論掃描。'}
               </p>
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -281,13 +300,13 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
                   onClick={onClose}
                   className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition"
                 >
-                  取消
+                  {isJa ? 'キャンセル' : '取消'}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-sm transition"
                 >
-                  立即解析此職缺 🚀
+                  {isJa ? 'この求人を解析する 🚀' : '立即解析此職缺 🚀'}
                 </button>
               </div>
             </form>

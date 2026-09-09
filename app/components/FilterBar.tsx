@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Language, I18N } from '@/lib/i18n';
 
 export type FilterCategory = 'ALL' | 'HIGH_RISK' | 'SUSPICIOUS' | 'SAFE' | 'MINASHI' | 'SCAM_BLACK' | 'DUPLICATES';
 export type SortOption = 'SCORE_DESC' | 'SCORE_ASC' | 'DATE_DESC' | 'DATE_ASC';
@@ -13,6 +14,7 @@ interface FilterBarProps {
   currentSort: SortOption;
   onSortChange: (sort: SortOption) => void;
   totalFilteredCount: number;
+  lang?: Language;
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
@@ -23,15 +25,18 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   currentSort,
   onSortChange,
   totalFilteredCount,
+  lang = 'zh',
 }) => {
+  const t = I18N[lang];
+
   const filterButtons: { id: FilterCategory; label: string; icon: string }[] = [
-    { id: 'ALL', label: '全部顯示', icon: '📋' },
-    { id: 'HIGH_RISK', label: '高風險/釣魚', icon: '🚨' },
-    { id: 'SUSPICIOUS', label: '存疑待查', icon: '⚠️' },
-    { id: 'SAFE', label: '正規安全', icon: '✅' },
-    { id: 'MINASHI', label: '含みなし残業', icon: '⏱️' },
-    { id: 'SCAM_BLACK', label: '黑心/精神論/SES', icon: '🚩' },
-    { id: 'DUPLICATES', label: '重複洗版/重貼', icon: '🔄' },
+    { id: 'ALL', label: t.filterAll, icon: '📋' },
+    { id: 'HIGH_RISK', label: t.filterHigh, icon: '🚨' },
+    { id: 'SUSPICIOUS', label: t.filterSuspicious, icon: '⚠️' },
+    { id: 'SAFE', label: t.filterSafe, icon: '✅' },
+    { id: 'MINASHI', label: t.filterMinashi, icon: '⏱️' },
+    { id: 'SCAM_BLACK', label: t.filterBlack, icon: '🚩' },
+    { id: 'DUPLICATES', label: t.filterDupe, icon: '🔄' },
   ];
 
   return (
@@ -41,7 +46,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <div className="relative flex-1">
           <input
             type="text"
-            placeholder="搜尋職缺名稱、企業名稱、工作地點或關鍵字 (如: メルカリ, SES, 未経験, 残業)..."
+            placeholder={t.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition text-slate-800"
@@ -58,16 +63,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
-          <span className="text-xs text-slate-400 whitespace-nowrap">排序：</span>
+          <span className="text-xs text-slate-400 whitespace-nowrap">{t.sortLabel}</span>
           <select
             value={currentSort}
             onChange={(e) => onSortChange(e.target.value as SortOption)}
             className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           >
-            <option value="SCORE_DESC">幽靈風險：由高至低 ⬇</option>
-            <option value="SCORE_ASC">幽靈風險：由低至高 ⬆</option>
-            <option value="DATE_DESC">刊登日期：最新發布 ⬇</option>
-            <option value="DATE_ASC">刊登日期：滯留最久 ⬆</option>
+            <option value="SCORE_DESC">{t.sortScoreDesc}</option>
+            <option value="SCORE_ASC">{t.sortScoreAsc}</option>
+            <option value="DATE_DESC">{t.sortDateDesc}</option>
+            <option value="DATE_ASC">{t.sortDateAsc}</option>
           </select>
         </div>
       </div>
@@ -92,7 +97,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           );
         })}
         <div className="ml-auto text-xs text-slate-400 pl-2 whitespace-nowrap">
-          顯示 <span className="font-bold text-slate-700">{totalFilteredCount}</span> 筆
+          {t.showingCount(totalFilteredCount)}
         </div>
       </div>
     </div>

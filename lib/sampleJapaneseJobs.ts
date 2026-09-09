@@ -8,7 +8,7 @@ export const SAMPLE_JAPANESE_JOBS: JobInput[] = [
     location: '東京都港区 / フルリモート可 (日本国内)',
     salary: '年収 800万円 〜 1,400万円 (固定残業代なし・時間外手当別途全額支給)',
     postedDate: '2026-08-25',
-    applyUrl: 'https://herp.careers/v1/mercari/senior-frontend-eng',
+    applyUrl: 'https://careers.mercari.com/',
     sourcePlatform: 'HERP Hire (企業公式)',
     description: `
 【業務内容】
@@ -35,7 +35,7 @@ Next.js, TypeScript, GraphQL, Tailwind CSS 等を用いたモダンなフロン�
     location: '東京都新宿区 または 都内各所のプロジェクト先',
     salary: '月給 35万円 〜 60万円（固定残業代40時間分を含む）',
     postedDate: '2026-04-10',
-    applyUrl: 'https://jp.indeed.com/viewjob?jk=indeed_sample_trap_01',
+    applyUrl: 'https://jp.indeed.com/jobs?q=自社内開発+エンジニア',
     sourcePlatform: 'Indeed Japan',
     description: `
 ★☆未経験からITエンジニアデビュー！案件多数☆★
@@ -61,7 +61,7 @@ Next.js, TypeScript, GraphQL, Tailwind CSS 等を用いたモダンなフロン�
     location: 'Tokyo, Japan / Hybrid',
     salary: '年収 1,500万円 〜 2,200万円',
     postedDate: '2026-03-01',
-    applyUrl: 'https://www.linkedin.com/jobs/view/linkedin_ghost_sample_02',
+    applyUrl: 'https://www.linkedin.com/jobs/search/?keywords=Solutions+Architect+Tokyo',
     sourcePlatform: 'LinkedIn Jobs (Promoted)',
     description: `
 Promoted Job by Executive Search Agency.
@@ -85,7 +85,7 @@ Key Requirements:
     location: '東京都豊島区池袋',
     salary: '月給 32万円（基本給19万円 ＋ 固定残業手当13万円／月60時間分を含む）',
     postedDate: '2026-08-30',
-    applyUrl: 'https://next.rikunabi.com/company/c_sample_black_dream',
+    applyUrl: 'https://next.rikunabi.com/',
     sourcePlatform: 'リクナビNEXT',
     description: `
 熱い想いと情熱を持った若手が活躍する、アットホームで家族のような職場です！
@@ -110,7 +110,7 @@ Key Requirements:
     location: '東京都渋谷区道玄坂',
     salary: '面談時に相談の上決定（Wantedly規定により非表示）',
     postedDate: '2025-11-15',
-    applyUrl: 'https://www.wantedly.com/projects/sample_wantedly_pool_05',
+    applyUrl: 'https://www.wantedly.com/projects',
     sourcePlatform: 'Wantedly',
     description: `
 「シゴトでココロオドル人を増やす」
@@ -134,7 +134,7 @@ Key Requirements:
     location: '神奈川県横浜市神奈川区',
     salary: '月給 18万円 〜 20万円',
     postedDate: '2026-01-15',
-    applyUrl: 'https://www.hellowork.mhlw.go.jp/kensaku/sample_kara_06',
+    applyUrl: 'https://www.hellowork.mhlw.go.jp/',
     sourcePlatform: 'ハローワーク',
     description: `
 求人番号：14010-98765432
@@ -155,7 +155,7 @@ Key Requirements:
     location: '東京都千代田区紀尾井町 / リモートワーク可',
     salary: '年収 900万円 〜 1,600万円 (裁量労働手当・成果賞与あり)',
     postedDate: '2026-09-02',
-    applyUrl: 'https://smarthr.co.jp/careers/line-yahoo-ml-engineer',
+    applyUrl: 'https://www.lycorp.co.jp/ja/recruit/',
     sourcePlatform: 'SmartHR (企業公式採用)',
     description: `
 LINEおよびYahoo! JAPANの大規模サービスにおける大規模言語モデル（LLM）の基盤開発・実証実験およびプロダクト統合を担当していただきます。
@@ -198,7 +198,7 @@ LINEおよびYahoo! JAPANの大規模サービスにおける大規模言語モ�
     location: '東京都新宿区 または 都内各所のプロジェクト先',
     salary: '月給 35万円 〜 60万円（固定残業代40時間分を含む）',
     postedDate: '2026-08-01',
-    applyUrl: 'https://jp.indeed.com/viewjob?jk=indeed_sample_trap_01_repost',
+    applyUrl: 'https://jp.indeed.com/jobs?q=自社内開発+エンジニア',
     sourcePlatform: 'Indeed Japan (洗版重貼)',
     description: `
 （※第2筆職缺之同公司、不同刊登日期重貼版本，用於驗證系統批次重複與定時重貼偵測功能）
@@ -214,7 +214,7 @@ LINEおよびYahoo! JAPANの大規模サービスにおける大規模言語モ�
     location: '東京都品川区大崎',
     salary: '年収 650万円 〜 900万円（固定残業手当 月30時間分含む。超過分は全額支給）',
     postedDate: '2026-08-20',
-    applyUrl: 'https://doda.jp/job/sample_doda_saas_01',
+    applyUrl: 'https://doda.jp/',
     sourcePlatform: 'doda (パーソルキャリア)',
     description: `
 人事労務向け自社SaaS「InsightCloud」のバックエンド設計・開発。

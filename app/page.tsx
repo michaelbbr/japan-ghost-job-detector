@@ -15,6 +15,7 @@ import { FilterBar, FilterCategory, SortOption } from '@/app/components/FilterBa
 import { JobCard } from '@/app/components/JobCard';
 import { JobGuideModal } from '@/app/components/JobGuideModal';
 import { SingleJobModal } from '@/app/components/SingleJobModal';
+import { Language, I18N } from '@/lib/i18n';
 
 // 日文 CSV 標題自動映射解析器
 function parseJapaneseCsv(text: string): JobInput[] {
@@ -96,10 +97,17 @@ function parseJapaneseCsv(text: string): JobInput[] {
 }
 
 export default function HomePage() {
+  const [lang, setLang] = useState<Language>('zh');
   const [jobs, setJobs] = useState<JobInput[]>([]);
   const [results, setResults] = useState<GhostAnalysisResult[]>([]);
   const [summary, setSummary] = useState<BatchSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // URL Instant Evaluation State
+  const [urlInput, setUrlInput] = useState<string>('');
+  const [isUrlAnalyzing, setIsUrlAnalyzing] = useState<boolean>(false);
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const [urlSuccess, setUrlSuccess] = useState<string | null>(null);
 
   // Filter & Search states
   const [filter, setFilter] = useState<FilterCategory>('ALL');
@@ -111,6 +119,28 @@ export default function HomePage() {
   const [isSingleJobModalOpen, setIsSingleJobModalOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 讀取語言偏好
+  useEffect(() => {
+    try {
+      const savedLang = localStorage.getItem('ghost_radar_lang') as Language | null;
+      if (savedLang === 'zh' || savedLang === 'ja') {
+        setLang(savedLang);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const toggleLanguage = () => {
+    const nextLang: Language = lang === 'zh' ? 'ja' : 'zh';
+    setLang(nextLang);
+    try {
+      localStorage.setItem('ghost_radar_lang', nextLang);
+    } catch {
+      // ignore
+    }
+  };
 
   // 分析批次職缺
   const processJobs = (inputJobs: JobInput[]) => {
@@ -143,7 +173,11 @@ export default function HomePage() {
       if (content) {
         const parsed = parseJapaneseCsv(content);
         if (parsed.length === 0) {
-          alert('未能從 CSV 檔案中識別出有效職缺。請確認包含「職種 / 企業名」或「title / company」等欄位標題！');
+          alert(
+            lang === 'ja'
+              ? 'CSVファイルから有効な求人データを取得できませんでした。「職種 / 企業名」または「title / company」が含まれているかご確認ください。'
+              : '未能從 CSV 檔案中識別出有效職缺。請確認包含「職種 / 企業名」或「title / company」等欄位標題！'
+          );
           return;
         }
         processJobs(parsed);
@@ -156,6 +190,52 @@ export default function HomePage() {
   const handleAddSingleJob = (newJob: JobInput) => {
     const updated = [newJob, ...jobs];
     processJobs(updated);
+  };
+
+  // URL 一鍵抓取與分析
+  const handleAnalyzeUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!urlInput.trim()) return;
+
+    setIsUrlAnalyzing(true);
+    setUrlError(null);
+    setUrlSuccess(null);
+
+    try {
+      const res = await fetch('/api/analyze-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlInput.trim() }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(
+          json.error ||
+            (lang === 'ja'
+              ? 'URLの取得または解析に失敗しました。URLが正しいかご確認ください。'
+              : '網址抓取或解析失敗，請確認該網址能公開訪問或格式正確。')
+        );
+      }
+
+      const fetchedJob: JobInput = json.data.job;
+      const updated = [fetchedJob, ...jobs];
+      processJobs(updated);
+
+      setUrlSuccess(
+        lang === 'ja'
+          ? `「${fetchedJob.title}（${fetchedJob.company}）」の自動取得・解析に成功しました！（ゴースト指数: ${json.data.analysis.ghostScore}点）`
+          : `成功抓取並分析「${fetchedJob.title}（${fetchedJob.company}）」！（幽靈風險評分: ${json.data.analysis.ghostScore}分）`
+      );
+      setUrlInput('');
+    } catch (err: any) {
+      setUrlError(
+        err.message ||
+          (lang === 'ja' ? '解析処理中にエラーが発生しました。' : '分析時發生未知錯誤。')
+      );
+    } finally {
+      setIsUrlAnalyzing(false);
+    }
   };
 
   // 篩選與排序後的職缺列表
@@ -212,8 +292,10 @@ export default function HomePage() {
       });
   }, [results, filter, sort, searchQuery]);
 
+  const t = I18N[lang];
+
   return (
-    <div className="min-h-screen flex flex-col justify-between">
+    <div className="min-h-screen flex flex-col justify-between bg-slate-50 text-slate-900">
       {/* Top Banner / Navbar */}
       <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -222,25 +304,35 @@ export default function HomePage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-1.5">
-                  <span>Ghost Job Radar</span>
+                  <span>{t.appTitle}</span>
                   <span className="text-xs bg-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/40">
-                    日本版 v2.0
+                    {t.versionBadge}
                   </span>
                 </h1>
               </div>
               <p className="text-[11px] text-slate-400 hidden sm:block">
-                日本求職防坑雷達・專治 Indeed/LinkedIn/Green/Hello Work 幽靈與釣魚職缺
+                {t.appSubtitle}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Language Switcher */}
+            <button
+              onClick={toggleLanguage}
+              className="px-3 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 text-xs font-bold border border-indigo-400/40 transition flex items-center gap-1.5 shadow-sm"
+              title={lang === 'zh' ? '切換為日本語' : '繁體中文に切り替える'}
+            >
+              <span>🌐</span>
+              <span>{lang === 'zh' ? '日本語' : '繁體中文'}</span>
+            </button>
+
             <button
               onClick={() => setIsGuideOpen(true)}
               className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
             >
               <span>🗾</span>
-              <span>日本求職指南</span>
+              <span className="hidden sm:inline">{t.guideBtn}</span>
             </button>
 
             <button
@@ -248,7 +340,7 @@ export default function HomePage() {
               className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition flex items-center gap-1.5"
             >
               <span>➕</span>
-              <span>單筆診斷</span>
+              <span className="hidden sm:inline">{t.singleBtn}</span>
             </button>
 
             <button
@@ -257,7 +349,7 @@ export default function HomePage() {
               title="載入 10 筆真實情境日本測試職缺"
             >
               <span>🔄</span>
-              <span>重新載入 Demo</span>
+              <span>{t.demoBtn}</span>
             </button>
           </div>
         </div>
@@ -271,22 +363,64 @@ export default function HomePage() {
 
           <div className="max-w-3xl relative z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold mb-3">
-              <span>🛡️ 日本專用求職避雷演算法</span>
-              <span>•</span>
-              <span>參考 Farhan89082 與 fansia 核心架構</span>
+              <span>{t.heroTag}</span>
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
-              在投出履歷前，看清日本求職網上的「幽靈與誘餌職缺」
+              {t.heroTitle}
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 mt-2.5 leading-relaxed">
-              全面支援 <strong>Indeed Japan、LinkedIn、Green、Wantedly、doda、Hello Work</strong>。
-              深度檢驗<strong>日本企業正規 ATS 採用系統</strong>、自動破解<strong>みなし残業（固定殘業）數字障眼法</strong>、
-              識別<strong>SES 客先常駐偽裝</strong>與<strong>アットホーム黑心精神論</strong>。
+              {t.heroDesc}
             </p>
 
+            {/* URL Instant Evaluation Bar */}
+            <div className="mt-6 p-2 sm:p-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-inner">
+              <form onSubmit={handleAnalyzeUrl} className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔗</span>
+                  <input
+                    type="url"
+                    required
+                    value={urlInput}
+                    onChange={(e) => {
+                      setUrlInput(e.target.value);
+                      if (urlError) setUrlError(null);
+                    }}
+                    placeholder={t.urlInputPlaceholder}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 border border-transparent shadow-sm"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isUrlAnalyzing}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white text-xs font-black transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  {isUrlAnalyzing ? (
+                    <>
+                      <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      <span>{t.urlAnalyzing}</span>
+                    </>
+                  ) : (
+                    <span>{t.urlAnalyzeBtn}</span>
+                  )}
+                </button>
+              </form>
+              {urlError && (
+                <div className="mt-2 text-xs text-rose-300 flex items-center gap-1.5 px-2">
+                  <span>⚠️</span>
+                  <span>{urlError}</span>
+                </div>
+              )}
+              {urlSuccess && (
+                <div className="mt-2 text-xs text-emerald-300 flex items-center gap-1.5 px-2">
+                  <span>✅</span>
+                  <span>{urlSuccess}</span>
+                </div>
+              )}
+            </div>
+
             {/* Action buttons */}
-            <div className="flex flex-wrap items-center gap-3 mt-6">
+            <div className="flex flex-wrap items-center gap-3 mt-4">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -296,35 +430,35 @@ export default function HomePage() {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2.5 rounded-xl bg-white text-slate-950 font-black text-xs hover:bg-slate-100 transition shadow-sm flex items-center gap-2"
+                className="px-4 py-2 rounded-xl bg-white text-slate-950 font-black text-xs hover:bg-slate-100 transition shadow-sm flex items-center gap-2"
               >
                 <span>📂</span>
-                <span>上傳日文 CSV 批次檢測</span>
+                <span>{t.uploadCsvBtn}</span>
               </button>
 
               <button
                 onClick={() => setIsSingleJobModalOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-black text-xs hover:bg-indigo-500 transition shadow-sm flex items-center gap-2"
+                className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-black text-xs hover:bg-indigo-500 transition shadow-sm flex items-center gap-2"
               >
                 <span>📝</span>
-                <span>貼上職缺文字即時診斷</span>
+                <span>{t.pasteTextBtn}</span>
               </button>
 
               <a
                 href="/sample_japan_jobs.csv"
                 download="sample_japan_jobs.csv"
-                className="px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center gap-2"
+                className="px-4 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center gap-2"
               >
                 <span>💾</span>
-                <span>下載範例 CSV</span>
+                <span>{t.downloadSampleBtn}</span>
               </a>
 
               <button
                 onClick={() => setIsGuideOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 text-indigo-200 text-xs font-semibold border border-indigo-800/80 transition flex items-center gap-2 ml-auto"
+                className="px-4 py-2 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 text-indigo-200 text-xs font-semibold border border-indigo-800/80 transition flex items-center gap-2 ml-auto"
               >
                 <span>📖</span>
-                <span>看日本都啥求職 (完整導覽)</span>
+                <span>{t.viewGuideBtn}</span>
               </button>
             </div>
           </div>
@@ -334,6 +468,7 @@ export default function HomePage() {
         <SummaryStats
           summary={summary}
           onFilterClick={(cat) => setFilter(cat as FilterCategory)}
+          lang={lang}
         />
 
         {/* Filter and Search Bar */}
@@ -345,6 +480,7 @@ export default function HomePage() {
           currentSort={sort}
           onSortChange={setSort}
           totalFilteredCount={filteredAndSortedResults.length}
+          lang={lang}
         />
 
         {/* Loading Indicator */}
@@ -352,15 +488,21 @@ export default function HomePage() {
           <div className="py-20 text-center">
             <div className="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
             <p className="text-xs text-slate-500 mt-3 font-semibold">
-              正在交叉核對日本 ATS、みなし残業與黑心特徵庫...
+              {lang === 'ja'
+                ? 'ATS認証、固定残業代、精神論ワードベースを照合中...'
+                : '正在交叉核對日本 ATS、みなし残業與黑心特徵庫...'}
             </p>
           </div>
         ) : filteredAndSortedResults.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500">
+          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500 shadow-sm">
             <span className="text-4xl block mb-2">🔍</span>
-            <h3 className="font-bold text-slate-700 text-base">未找到符合條件的職缺</h3>
+            <h3 className="font-bold text-slate-700 text-base">
+              {lang === 'ja' ? '条件に一致する求人が見つかりませんでした' : '未找到符合條件的職缺'}
+            </h3>
             <p className="text-xs text-slate-400 mt-1">
-              請嘗試切換其他篩選標籤，或清除搜尋關鍵字。
+              {lang === 'ja'
+                ? 'フィルター条件を変更するか、検索キーワードをクリアしてください。'
+                : '請嘗試切換其他篩選標籤，或清除搜尋關鍵字。'}
             </p>
             <button
               onClick={() => {
@@ -369,14 +511,14 @@ export default function HomePage() {
               }}
               className="mt-4 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition"
             >
-              重設篩選條件
+              {lang === 'ja' ? 'フィルターをリセット' : '重設篩選條件'}
             </button>
           </div>
         ) : (
           /* Cards Grid */
           <div className="space-y-4">
             {filteredAndSortedResults.map((job) => (
-              <JobCard key={job.id} job={job} />
+              <JobCard key={job.id} job={job} lang={lang} />
             ))}
           </div>
         )}
@@ -386,72 +528,60 @@ export default function HomePage() {
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xl">📚</span>
             <h3 className="text-lg font-black text-slate-900">
-              為什麼日本企業會刊登幽靈與釣魚職缺？ (なぜ企業はカラ求人を出すのか？)
+              {t.eduTitle}
             </h3>
           </div>
           <p className="text-xs text-slate-500 mb-6">
-            根據日本厚生勞動省勞動市場調查與各大轉職獵頭實務，幽靈職缺背後通常有以下六大動機：
+            {t.eduSubtitle}
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
               <div className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
                 <span>🎯</span>
-                <span>儲備人才庫 (Talent Pipeline)</span>
+                <span>{t.eduCard1Title}</span>
               </div>
-              <p className="text-slate-600 leading-relaxed">
-                即使當前部門暫無正式 Headcount，大企業仍會長設通年招募（Open Position），將求職者履歷放入儲備庫中。一旦未來有離職或新專案，隨時有人選可撈取，但當前應徵者往往面臨已讀不回。
-              </p>
+              <p className="text-slate-600 leading-relaxed">{t.eduCard1Desc}</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
               <div className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
                 <span>🎣</span>
-                <span>SES 人月仲介釣魚 (おとり求人)</span>
+                <span>{t.eduCard2Title}</span>
               </div>
-              <p className="text-slate-600 leading-relaxed">
-                派遣公司或 SES 在求職網打出「未經驗・月給35萬・自社開發」的好缺。求職者投遞後，仲介便以「該缺剛好額滿」為由，順理成章向求職者推銷客戶端常駐（客先常駐）等高流動率外包缺。
-              </p>
+              <p className="text-slate-600 leading-relaxed">{t.eduCard2Desc}</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
               <div className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
                 <span>💰</span>
-                <span>申請政府補助金 (助成金維持)</span>
+                <span>{t.eduCard3Title}</span>
               </div>
-              <p className="text-slate-600 leading-relaxed">
-                在公營 Hello Work 尤為普遍。部分中小企業為了申請日本政府的僱用助成金或符合法定進用比例，必須常年在 Hello Work 登記開缺，即使完全沒有用人預算與計畫也絕不下架。
-              </p>
+              <p className="text-slate-600 leading-relaxed">{t.eduCard3Desc}</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
               <div className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
                 <span>📈</span>
-                <span>向投資人展示成長性 (PR効果)</span>
+                <span>{t.eduCard4Title}</span>
               </div>
-              <p className="text-slate-600 leading-relaxed">
-                新創公司與上市企業常在 LinkedIn 或官方網站掛滿各類高階管理與工程職位，向競爭對手、股東與客戶營造「本公司正處於爆炸性擴張階段」的假象，實質上審核門檻設得極高或根本不安排面試。
-              </p>
+              <p className="text-slate-600 leading-relaxed">{t.eduCard4Desc}</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
               <div className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
                 <span>⏱️</span>
-                <span>みなし残業隱匿超長工時</span>
+                <span>{t.eduCard5Title}</span>
               </div>
-              <p className="text-slate-600 leading-relaxed">
-                表面上開出看似體面的月薪，但其中包了 45~60 小時的固定殘業代。黑心企業以此在求職列表脫穎而出，實際上壓低基礎時薪，並透過精神論壓榨年輕員工。
-              </p>
+              <p className="text-slate-600 leading-relaxed">{t.eduCard5Desc}</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
               <div className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
                 <span>🔄</span>
-                <span>求職搜尋引擎洗版演算法</span>
+                <span>{t.eduCard6Title}</span>
               </div>
-              <p className="text-slate-600 leading-relaxed">
-                Indeed、求人ボックス等聚合搜尋引擎的排序偏好「近期有更新動作」的職缺。許多人資與仲介每兩週設定自動點擊刷新日期，營造「全新急募」假象，實為長年陳舊缺。
-              </p>
+              <p className="text-slate-600 leading-relaxed">{t.eduCard6Desc}</p>
             </div>
           </div>
         </div>
@@ -465,7 +595,7 @@ export default function HomePage() {
               🇯🇵 Japan Ghost Job & Black Kyujin Radar
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              本工具提供的幽靈風險指數為基於公開規則之特徵推估，非 100% 絕對定論。投遞前請務必至 OpenWork 與企業官網綜合驗證。
+              {t.footerDisclaimer}
             </p>
           </div>
           <div className="flex items-center gap-4 text-xs">
@@ -473,7 +603,7 @@ export default function HomePage() {
               onClick={() => setIsGuideOpen(true)}
               className="text-indigo-600 hover:underline font-semibold"
             >
-              日本求職平台指南
+              {t.guideBtn}
             </button>
             <a
               href="https://www.openwork.jp"
@@ -481,7 +611,7 @@ export default function HomePage() {
               rel="noopener noreferrer"
               className="hover:underline"
             >
-              OpenWork 官網
+              OpenWork
             </a>
             <a
               href="https://jp.indeed.com"
@@ -504,11 +634,12 @@ export default function HomePage() {
       </footer>
 
       {/* Modals */}
-      <JobGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+      <JobGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} lang={lang} />
       <SingleJobModal
         isOpen={isSingleJobModalOpen}
         onClose={() => setIsSingleJobModalOpen(false)}
         onSubmitJob={handleAddSingleJob}
+        lang={lang}
       />
     </div>
   );

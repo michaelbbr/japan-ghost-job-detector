@@ -1,5 +1,6 @@
 import { detectAtsFromUrl, AtsDetectionResult } from './japanAtsDetector';
 import { scanJapanJobScams, analyzeMinashiZangyo, ScamHit } from './japanScamDictionary';
+import { buildOpenWorkUrl, buildGoogleReviewUrl } from './urlScraper';
 
 export interface JobInput {
   id?: string;
@@ -81,6 +82,7 @@ export interface GhostAnalysisResult extends JobInput {
   caveats: string[];
   recommendations: string[];
   openWorkUrl: string;
+  googleReviewUrl: string;
   duplicateInfo?: DuplicateInfo;
   analyzedAt: string;
 }
@@ -456,7 +458,8 @@ export function analyzeSingleJob(job: JobInput, dupeInfo?: DuplicateInfo): Ghost
   }
   recommendations.push('向企業索取正式《労働条件通知書》(勞動條件通知書)，比對是否與求人票一致');
 
-  const openWorkUrl = `https://www.openwork.jp/search/?q=${encodeURIComponent(company)}`;
+  const openWorkUrl = buildOpenWorkUrl(company);
+  const googleReviewUrl = buildGoogleReviewUrl(company);
 
   return {
     ...job,
@@ -475,6 +478,7 @@ export function analyzeSingleJob(job: JobInput, dupeInfo?: DuplicateInfo): Ghost
     caveats,
     recommendations,
     openWorkUrl,
+    googleReviewUrl,
     duplicateInfo: dupeInfo,
     analyzedAt: new Date().toISOString(),
   };
