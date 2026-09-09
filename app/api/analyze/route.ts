@@ -33,9 +33,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '請提供有效的職缺資料 (jobs, job, 或 text)' }, { status: 400 });
     }
 
+    const lang = body.lang === 'ja' ? 'ja' : 'zh';
     const dupeMap = detectBatchDuplicatesAndReposts(jobsToAnalyze);
     const results: GhostAnalysisResult[] = jobsToAnalyze.map((job, idx) =>
-      analyzeSingleJob(job, dupeMap[idx])
+      analyzeSingleJob(job, dupeMap[idx], lang)
     );
 
     const summary = buildBatchSummary(results);
@@ -55,10 +56,11 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const isDemo = searchParams.get('demo') === 'true';
+  const lang = searchParams.get('lang') === 'ja' ? 'ja' : 'zh';
 
   if (isDemo) {
     const dupeMap = detectBatchDuplicatesAndReposts(SAMPLE_JAPANESE_JOBS);
-    const results = SAMPLE_JAPANESE_JOBS.map((job, idx) => analyzeSingleJob(job, dupeMap[idx]));
+    const results = SAMPLE_JAPANESE_JOBS.map((job, idx) => analyzeSingleJob(job, dupeMap[idx], lang));
     const summary = buildBatchSummary(results);
     return NextResponse.json({
       success: true,

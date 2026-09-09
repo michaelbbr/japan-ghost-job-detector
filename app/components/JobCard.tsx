@@ -133,13 +133,13 @@ export const JobCard: React.FC<JobCardProps> = ({ job, lang = 'zh' }) => {
             <span
               className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${style.lightBg} ${style.border} ${style.text}`}
             >
-              {job.verdict}
+              {job.verdictText || job.verdict}
             </span>
             <span
               className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200"
               title={job.confidenceNote}
             >
-              {t.confidenceLabel}: {job.confidence}
+              {t.confidenceLabel}: {job.confidenceText || job.confidence}
             </span>
           </div>
         </div>
@@ -219,7 +219,7 @@ export const JobCard: React.FC<JobCardProps> = ({ job, lang = 'zh' }) => {
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs px-2.5 py-1.5 rounded-xl bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 transition font-medium flex items-center gap-1"
-              title="在日本最大員工評價網 OpenWork 查看該公司真實加班與年薪"
+              title={lang === 'ja' ? '日本最大級の社員クチコミサイトOpenWorkで残業時間や年収を確認' : '在日本最大員工評價網 OpenWork 查看該公司真實加班與年薪'}
             >
               <span>🏢</span>
               <span>{t.openWorkBtn}</span>
@@ -231,7 +231,7 @@ export const JobCard: React.FC<JobCardProps> = ({ job, lang = 'zh' }) => {
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition font-medium flex items-center gap-1 border border-slate-200"
-              title="在 Google 搜尋該公司的口碑評價與退職爆料"
+              title={lang === 'ja' ? 'Googleで企業の評判・退職理由を検索' : '在 Google 搜尋該公司的口碑評價與退職爆料'}
             >
               <span>🔍</span>
               <span>{t.googleReviewBtn}</span>

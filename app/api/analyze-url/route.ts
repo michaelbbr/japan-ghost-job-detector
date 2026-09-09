@@ -45,7 +45,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const analyzedResult: GhostAnalysisResult = analyzeSingleJob(jobData);
+    const lang = body.lang === 'ja' ? 'ja' : 'zh';
+    const analyzedResult: GhostAnalysisResult = analyzeSingleJob(jobData, undefined, lang);
 
     return NextResponse.json({
       success: true,

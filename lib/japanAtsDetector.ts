@@ -135,14 +135,16 @@ export const JAPAN_ATS_REGISTRY: Record<string, { name: string; type: 'japanese_
   },
 };
 
-export function detectAtsFromUrl(url: string): AtsDetectionResult {
-  if (!url || typeof url !== 'string') {
+export function detectAtsFromUrl(url?: string, lang: 'zh' | 'ja' = 'zh'): AtsDetectionResult {
+  const isJa = lang === 'ja';
+
+  if (!url || !url.trim()) {
     return {
       detected: false,
       atsType: 'unknown',
-      label: '無應徵連結',
+      label: isJa ? '応募URL・公式リンクなし' : '無應徵 / 官網連結',
       isDirectEmployer: false,
-      notes: '未提供申請網址或官網連結',
+      notes: isJa ? '応募URLまたは企業公式サイトへのリンクが未記載です。' : '未提供申請網址或官網連結',
     };
   }
 
@@ -156,27 +158,33 @@ export function detectAtsFromUrl(url: string): AtsDetectionResult {
             detected: true,
             atsName: ats.name,
             atsType: 'japanese_ats',
-            label: `日本企業正規 ATS (${ats.name})`,
+            label: isJa ? `日本国内正規ATS (${ats.name})` : `日本企業正規 ATS (${ats.name})`,
             isDirectEmployer: true,
-            notes: `檢測到日本主流正規招募系統 ${ats.name}，通常為企業官方直聘，真實度較高。`,
+            notes: isJa
+              ? `国内主要採用管理システム（${ats.name}）を経由した正規直募です。実在性が極めて高いです。`
+              : `檢測到日本主流正規招募系統 ${ats.name}，通常為企業官方直聘，真實度較高。`,
           };
         } else if (ats.type === 'global_ats') {
           return {
             detected: true,
             atsName: ats.name,
             atsType: 'global_ats',
-            label: `跨國外商正規 ATS (${ats.name})`,
+            label: isJa ? `グローバル正規ATS (${ats.name})` : `跨國外商正規 ATS (${ats.name})`,
             isDirectEmployer: true,
-            notes: `檢測到外商/跨國企業主流系統 ${ats.name}，為企業直接管理之後台。`,
+            notes: isJa
+              ? `外資系・グローバル採用システム（${ats.name}）で管理された企業直属のポジションです。`
+              : `檢測到外商/跨國企業主流系統 ${ats.name}，為企業直接管理之後台。`,
           };
         } else {
           return {
             detected: true,
             atsName: ats.name,
             atsType: 'job_board',
-            label: `求職平台轉址 (${ats.name})`,
+            label: isJa ? `求人媒体掲載 (${ats.name})` : `求職平台轉址 (${ats.name})`,
             isDirectEmployer: false,
-            notes: `此為 ${ats.name} 刊登頁面，需進一步確認刊登者為企業直招或派遣/人力仲介。`,
+            notes: isJa
+              ? `求人ポータル（${ats.name}）上の掲載です。派遣会社や紹介会社の代理投稿か確認が必要です。`
+              : `此為 ${ats.name} 刊登頁面，需進一步確認刊登者為企業直招或派遣/人力仲介。`,
           };
         }
       }
@@ -195,17 +203,21 @@ export function detectAtsFromUrl(url: string): AtsDetectionResult {
     return {
       detected: true,
       atsType: 'official_site',
-      label: '企業官方招募頁面 (採用ページ)',
+      label: isJa ? '企業公式採用ページ (Recruit)' : '企業官方招募頁面 (採用ページ)',
       isDirectEmployer: true,
-      notes: '連結指向企業官方網站之專屬招募專頁 (Recruit / Careers)。',
+      notes: isJa
+        ? '企業公式サイトの採用専門ページへの直通リンクです。'
+        : '連結指向企業官方網站之專屬招募專頁 (Recruit / Careers)。',
     };
   }
 
   return {
     detected: false,
     atsType: 'unknown',
-    label: '一般網址 / 未知系統',
+    label: isJa ? '一般URL / 未知の採用窓口' : '一般網址 / 未知系統',
     isDirectEmployer: false,
-    notes: '無法從網址特徵判斷是否為正規企業 ATS 或官方職缺。',
+    notes: isJa
+      ? 'URLから正規ATSや公式採用窓口を特定できませんでした。'
+      : '無法從網址特徵判斷是否為正規企業 ATS 或官方職缺。',
   };
 }

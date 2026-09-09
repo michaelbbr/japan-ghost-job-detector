@@ -165,6 +165,7 @@ export default function HomePage() {
   }, [userJobs, isDemoExpanded]);
 
   // 分析職缺清單
+  // 分析職缺清單
   useEffect(() => {
     if (activeJobs.length === 0) {
       setResults([]);
@@ -175,16 +176,30 @@ export default function HomePage() {
     setIsLoading(true);
     const timer = setTimeout(() => {
       const dupeMap = detectBatchDuplicatesAndReposts(activeJobs);
-      const analyzed = activeJobs.map((job, idx) => analyzeSingleJob(job, dupeMap[idx]));
+      const analyzed = activeJobs.map((job, idx) => analyzeSingleJob(job, dupeMap[idx], lang));
       const sum = buildBatchSummary(analyzed);
 
       setResults(analyzed);
       setSummary(sum);
+
+      // 同步以當前語言重新渲染 Spotlight 職缺
+      setSpotlightJob((prev) => {
+        if (!prev) return null;
+        const matchingJob = activeJobs.find(
+          (j) => (j.id && j.id === prev.id) || (j.title === prev.title && j.company === prev.company)
+        );
+        if (matchingJob) {
+          const matchingIdx = activeJobs.indexOf(matchingJob);
+          return analyzeSingleJob(matchingJob, dupeMap[matchingIdx], lang);
+        }
+        return analyzeSingleJob(prev, undefined, lang);
+      });
+
       setIsLoading(false);
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [activeJobs]);
+  }, [activeJobs, lang]);
 
   // 檔案上傳處理 (CSV)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,7 +220,7 @@ export default function HomePage() {
           return;
         }
         setUserJobs((prev) => [...parsed, ...prev]);
-        const firstAnalyzed = analyzeSingleJob(parsed[0]);
+        const firstAnalyzed = analyzeSingleJob(parsed[0], undefined, lang);
         setSpotlightJob(firstAnalyzed);
         setIsDemoExpanded(false);
         setTimeout(() => spotlightRef.current?.scrollIntoView({ behavior: 'smooth' }), 150);
@@ -216,7 +231,7 @@ export default function HomePage() {
 
   // 新增單筆職缺（手動填寫或智慧貼上）
   const handleAddSingleJob = (newJob: JobInput) => {
-    const analyzed = analyzeSingleJob(newJob);
+    const analyzed = analyzeSingleJob(newJob, undefined, lang);
     setUserJobs((prev) => [newJob, ...prev]);
     setSpotlightJob(analyzed);
     setIsDemoExpanded(false);
@@ -236,7 +251,7 @@ export default function HomePage() {
 
     try {
       const parsedJob = parseJapaneseJobText(heroPasteText);
-      const analyzed = analyzeSingleJob(parsedJob);
+      const analyzed = analyzeSingleJob(parsedJob, undefined, lang);
       setUserJobs((prev) => [parsedJob, ...prev]);
       setSpotlightJob(analyzed);
       setIsDemoExpanded(false);
@@ -285,7 +300,7 @@ export default function HomePage() {
       const res = await fetch('/api/analyze-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: urlInput.trim() }),
+        body: JSON.stringify({ url: urlInput.trim(), lang }),
       });
 
       const json = await res.json();
@@ -728,6 +743,74 @@ export default function HomePage() {
                     </div>
                   </div>
 
+                  {/* 🚨 偵測到的具體黑心／誘餌特徵明細 (Exact Detected Scam/Risk Items) */}
+                  {spotlightJob.scamHits && spotlightJob.scamHits.length > 0 && (
+                    <div className="p-4 sm:p-5 rounded-2xl bg-rose-50/90 border-2 border-rose-200/90 text-xs animate-fadeIn shadow-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-rose-200/80 mb-3">
+                        <div className="font-black text-rose-950 text-sm flex items-center gap-2">
+                          <span className="text-base">🚨</span>
+                          <span>
+                            {lang === 'ja'
+                              ? `検出された具体的なリスク特徴・危険話術（計 ${spotlightJob.scamHits.length} 項目）`
+                              : `偵測到的具體黑心／誘餌特徵明細（共 ${spotlightJob.scamHits.length} 項）`}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-bold text-rose-700 bg-rose-200/60 px-2.5 py-0.5 rounded-full">
+                          {lang === 'ja' ? '求人文との照合結果' : '職缺原文精確命中'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {spotlightJob.scamHits.map((hit, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3.5 rounded-xl bg-white border border-rose-200/70 shadow-xs space-y-2"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`text-[10px] font-black px-2 py-0.5 rounded ${
+                                  hit.severity === 'CRITICAL'
+                                    ? 'bg-red-600 text-white'
+                                    : hit.severity === 'HIGH'
+                                    ? 'bg-rose-500 text-white'
+                                    : 'bg-amber-500 text-slate-950'
+                                }`}
+                              >
+                                {hit.severity}
+                              </span>
+                              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-rose-100/80 text-rose-800">
+                                {hit.categoryLabel}
+                              </span>
+                              <span className="font-black text-slate-900 text-xs sm:text-sm">
+                                {hit.title}
+                              </span>
+                            </div>
+
+                            {hit.matchedText && (
+                              <div className="flex flex-wrap items-center gap-1.5 text-xs text-rose-900 bg-rose-50/80 px-3 py-1.5 rounded-lg border border-rose-200/80">
+                                <span className="font-bold shrink-0">🎯 {lang === 'ja' ? '該当箇所（原文）：' : '命中職缺原文：'}</span>
+                                <code className="font-bold text-rose-700 bg-white px-2 py-0.5 rounded border border-rose-200 break-all">
+                                  「{hit.matchedText}」
+                                </code>
+                              </div>
+                            )}
+
+                            <p className="text-slate-700 leading-relaxed text-[11px]">
+                              {hit.explanation}
+                            </p>
+
+                            {hit.legalRisk && (
+                              <div className="text-[11px] font-medium text-amber-900 bg-amber-50/90 p-2.5 rounded-lg border border-amber-200/80 flex items-start gap-1.5">
+                                <span className="mt-0.5 shrink-0">⚠️</span>
+                                <span className="leading-relaxed">{hit.legalRisk}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* 4 Signals Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                     {spotlightJob.signals.map((sig) => (
@@ -777,7 +860,7 @@ export default function HomePage() {
                       {spotlightJob.ghostScore}{' '}
                       <span className="text-sm font-normal text-slate-400">/ 100</span>
                     </div>
-                    <div className="mt-3">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span
                         className={`inline-block px-3 py-1 rounded-full text-xs font-black uppercase ${
                           spotlightJob.ghostScore >= 70
@@ -787,7 +870,13 @@ export default function HomePage() {
                             : 'bg-emerald-500 text-white'
                         }`}
                       >
-                        {spotlightJob.verdict}
+                        {spotlightJob.verdictText || spotlightJob.verdict}
+                      </span>
+                      <span
+                        className="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700"
+                        title={spotlightJob.confidenceNote}
+                      >
+                        {t.confidenceLabel}: {spotlightJob.confidenceText || spotlightJob.confidence}
                       </span>
                     </div>
                     <p className="text-xs text-slate-300 mt-3 leading-relaxed">

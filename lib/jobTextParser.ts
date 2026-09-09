@@ -149,8 +149,13 @@ export function parseJapaneseJobText(rawText: string): JobInput {
   }
 
   // 7. 最終防護清洗與合理預設值
-  const cleanedTitle = title.trim() || '日本求職職缺檢測';
-  const cleanedCompany = company.trim() || (location ? `${location.split(' ')[0]} 徵才企業` : '日本採用企業 (社名未指定)');
+  let cleanedTitle = (title.trim() || '日本求職職缺檢測')
+    .replace(/\s*[-–|/]\s*(?:job\s*post|Indeed|インディード|求人ボックス|マイナビ|リクナビ|doda).*$/i, '')
+    .trim();
+  if (!cleanedTitle) cleanedTitle = '日本求職職缺檢測';
+
+  let cleanedCompany = company.trim() || (location ? `${location.split(' ')[0]} 徵才企業` : '日本採用企業 (社名未指定)');
+  cleanedCompany = cleanedCompany.replace(/\s*[\(（][^)）]*$/, '').trim();
 
   return {
     id: `paste_${Date.now()}`,

@@ -55,7 +55,9 @@ export const SummaryStats: React.FC<SummaryStatsProps> = ({ summary, onFilterCli
         >
           <div className="text-xs font-medium text-red-600 flex items-center justify-between">
             <span>🚨 {t.statHighRisk}</span>
-            <span className="text-[10px] bg-red-200/60 px-1.5 py-0.5 rounded text-red-700">70+分</span>
+            <span className="text-[10px] bg-red-200/60 px-1.5 py-0.5 rounded text-red-700">
+              {lang === 'ja' ? '70点以上' : '70+分'}
+            </span>
           </div>
           <div className="text-2xl font-black text-red-700 mt-1.5 group-hover:scale-105 transition-transform">
             {summary.highRisk}
@@ -70,7 +72,9 @@ export const SummaryStats: React.FC<SummaryStatsProps> = ({ summary, onFilterCli
         >
           <div className="text-xs font-medium text-amber-700 flex items-center justify-between">
             <span>⚠️ {t.statSuspicious}</span>
-            <span className="text-[10px] bg-amber-200/60 px-1.5 py-0.5 rounded text-amber-800">45-69分</span>
+            <span className="text-[10px] bg-amber-200/60 px-1.5 py-0.5 rounded text-amber-800">
+              {lang === 'ja' ? '45-69点' : '45-69分'}
+            </span>
           </div>
           <div className="text-2xl font-black text-amber-700 mt-1.5 group-hover:scale-105 transition-transform">
             {summary.suspicious}
@@ -85,7 +89,9 @@ export const SummaryStats: React.FC<SummaryStatsProps> = ({ summary, onFilterCli
         >
           <div className="text-xs font-medium text-emerald-700 flex items-center justify-between">
             <span>✅ {t.statSafe}</span>
-            <span className="text-[10px] bg-emerald-200/60 px-1.5 py-0.5 rounded text-emerald-800">&lt;45分</span>
+            <span className="text-[10px] bg-emerald-200/60 px-1.5 py-0.5 rounded text-emerald-800">
+              {lang === 'ja' ? '45点未満' : '<45分'}
+            </span>
           </div>
           <div className="text-2xl font-black text-emerald-700 mt-1.5 group-hover:scale-105 transition-transform">
             {summary.likelyReal + summary.lowRisk}
