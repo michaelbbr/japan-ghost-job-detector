@@ -8,7 +8,10 @@ export async function POST(req: NextRequest) {
     const url = (body.url || '').trim();
 
     if (!url || !url.startsWith('http')) {
-      return NextResponse.json({ error: '請輸入有效的網址 (以 http:// 或 https:// 開頭)' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: '請輸入有效的網址 (以 http:// 或 https:// 開頭)' },
+        { status: 400 }
+      );
     }
 
     let jobData;
@@ -34,11 +37,20 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      data: {
+        job: jobData,
+        analysis: analyzedResult,
+      },
+      job: jobData,
+      analysis: analyzedResult,
       result: analyzedResult,
       timestamp: new Date().toISOString(),
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: '網址診斷失敗', details: message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: '網址診斷失敗', details: message },
+      { status: 500 }
+    );
   }
 }

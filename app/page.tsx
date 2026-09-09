@@ -32,7 +32,7 @@ function parseJapaneseCsv(text: string): JobInput[] {
     salary: ['salary', '給与', '年収', '月給', '賃金', '給料', 'pay', 'compensation'],
     postedDate: ['posted_date', 'posted date', 'date', '掲載日', '更新日', '日付', 'date posted'],
     applyUrl: ['apply_link', 'apply url', 'link', 'url', '求人url', '応募url', 'リンク', 'apply link'],
-    sourcePlatform: ['platform', 'source', '媒体', '掲載媒体', '求人媒体', 'サイト'],
+    sourcePlatform: ['platform', 'source', '媒体', '掲載媒體', '求人媒體', 'サイト'],
     description: ['description', '詳細', '業務内容', '仕事内容', '募集要項', '求人詳細', '概要'],
     id: ['id', 'job_id', '求人id', '管理番号'],
   };
@@ -51,7 +51,6 @@ function parseJapaneseCsv(text: string): JobInput[] {
   const parsedJobs: JobInput[] = [];
 
   for (let r = 1; r < lines.length; r++) {
-    // 簡易處理含逗號之 CSV 列
     const row = lines[r];
     const cells: string[] = [];
     let insideQuote = false;
@@ -98,7 +97,13 @@ function parseJapaneseCsv(text: string): JobInput[] {
 
 export default function HomePage() {
   const [lang, setLang] = useState<Language>('zh');
-  const [jobs, setJobs] = useState<JobInput[]>([]);
+
+  // 使用者自訂職缺與範例職缺管理
+  const [userJobs, setUserJobs] = useState<JobInput[]>([]);
+  const [isDemoExpanded, setIsDemoExpanded] = useState<boolean>(false);
+  const [spotlightJob, setSpotlightJob] = useState<GhostAnalysisResult | null>(null);
+
+  // 分析結果與統計
   const [results, setResults] = useState<GhostAnalysisResult[]>([]);
   const [summary, setSummary] = useState<BatchSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -119,6 +124,7 @@ export default function HomePage() {
   const [isSingleJobModalOpen, setIsSingleJobModalOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const spotlightRef = useRef<HTMLDivElement>(null);
 
   // 讀取語言偏好
   useEffect(() => {
@@ -142,27 +148,37 @@ export default function HomePage() {
     }
   };
 
-  // 分析批次職缺
-  const processJobs = (inputJobs: JobInput[]) => {
+  // 當前清單職缺（若使用者有輸入則顯示使用者職缺；若展開範例則合併或顯示範例）
+  const activeJobs = useMemo<JobInput[]>(() => {
+    if (userJobs.length > 0) {
+      return isDemoExpanded ? [...userJobs, ...SAMPLE_JAPANESE_JOBS] : userJobs;
+    }
+    return isDemoExpanded ? SAMPLE_JAPANESE_JOBS : [];
+  }, [userJobs, isDemoExpanded]);
+
+  // 分析職缺清單
+  useEffect(() => {
+    if (activeJobs.length === 0) {
+      setResults([]);
+      setSummary(null);
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
-      const dupeMap = detectBatchDuplicatesAndReposts(inputJobs);
-      const analyzed = inputJobs.map((job, idx) => analyzeSingleJob(job, dupeMap[idx]));
+    const timer = setTimeout(() => {
+      const dupeMap = detectBatchDuplicatesAndReposts(activeJobs);
+      const analyzed = activeJobs.map((job, idx) => analyzeSingleJob(job, dupeMap[idx]));
       const sum = buildBatchSummary(analyzed);
 
-      setJobs(inputJobs);
       setResults(analyzed);
       setSummary(sum);
       setIsLoading(false);
-    }, 150);
-  };
+    }, 100);
 
-  // 預設載入 Demo 資料
-  useEffect(() => {
-    processJobs(SAMPLE_JAPANESE_JOBS);
-  }, []);
+    return () => clearTimeout(timer);
+  }, [activeJobs]);
 
-  // 檔案上傳處理
+  // 檔案上傳處理 (CSV)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -180,16 +196,25 @@ export default function HomePage() {
           );
           return;
         }
-        processJobs(parsed);
+        setUserJobs((prev) => [...parsed, ...prev]);
+        const firstAnalyzed = analyzeSingleJob(parsed[0]);
+        setSpotlightJob(firstAnalyzed);
+        setIsDemoExpanded(false);
+        setTimeout(() => spotlightRef.current?.scrollIntoView({ behavior: 'smooth' }), 150);
       }
     };
     reader.readAsText(file, 'utf-8');
   };
 
-  // 新增單筆職缺
+  // 新增單筆職缺（手動填寫或智慧貼上）
   const handleAddSingleJob = (newJob: JobInput) => {
-    const updated = [newJob, ...jobs];
-    processJobs(updated);
+    const analyzed = analyzeSingleJob(newJob);
+    setUserJobs((prev) => [newJob, ...prev]);
+    setSpotlightJob(analyzed);
+    setIsDemoExpanded(false);
+    setTimeout(() => {
+      spotlightRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 150);
   };
 
   // URL 一鍵抓取與分析
@@ -218,16 +243,27 @@ export default function HomePage() {
         );
       }
 
-      const fetchedJob: JobInput = json.data.job;
-      const updated = [fetchedJob, ...jobs];
-      processJobs(updated);
+      const fetchedJob: JobInput = json.data?.job || json.job || json.result;
+      const analyzedJob: GhostAnalysisResult = json.data?.analysis || json.analysis || json.result;
+
+      if (!fetchedJob) {
+        throw new Error(lang === 'ja' ? '求人データの抽出に失敗しました。' : '未能解析出職缺資訊。');
+      }
+
+      setUserJobs((prev) => [fetchedJob, ...prev]);
+      setSpotlightJob(analyzedJob);
+      setIsDemoExpanded(false);
 
       setUrlSuccess(
         lang === 'ja'
-          ? `「${fetchedJob.title}（${fetchedJob.company}）」の自動取得・解析に成功しました！（ゴースト指数: ${json.data.analysis.ghostScore}点）`
-          : `成功抓取並分析「${fetchedJob.title}（${fetchedJob.company}）」！（幽靈風險評分: ${json.data.analysis.ghostScore}分）`
+          ? `「${fetchedJob.title}（${fetchedJob.company}）」の自動取得・解析に成功しました！（ゴースト指数: ${analyzedJob.ghostScore}点）`
+          : `成功抓取並分析「${fetchedJob.title}（${fetchedJob.company}）」！（幽靈風險評分: ${analyzedJob.ghostScore}分）`
       );
       setUrlInput('');
+
+      setTimeout(() => {
+        spotlightRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
     } catch (err: any) {
       setUrlError(
         err.message ||
@@ -342,15 +378,6 @@ export default function HomePage() {
               <span>➕</span>
               <span className="hidden sm:inline">{t.singleBtn}</span>
             </button>
-
-            <button
-              onClick={() => processJobs(SAMPLE_JAPANESE_JOBS)}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition hidden md:flex items-center gap-1"
-              title="載入 10 筆真實情境日本測試職缺"
-            >
-              <span>🔄</span>
-              <span>{t.demoBtn}</span>
-            </button>
           </div>
         </div>
       </header>
@@ -464,24 +491,204 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Summary Statistics */}
-        <SummaryStats
-          summary={summary}
-          onFilterClick={(cat) => setFilter(cat as FilterCategory)}
-          lang={lang}
-        />
+        {/* 🎯 SPOTLIGHT CARD: 即時診斷重點結果 (直覺置頂於最上方) */}
+        {spotlightJob && (
+          <div ref={spotlightRef} className="mb-10 scroll-mt-20 animate-fadeIn">
+            <div className="rounded-3xl border-2 border-indigo-500/50 bg-white p-6 sm:p-8 shadow-xl relative overflow-hidden ring-4 ring-indigo-500/10">
+              {/* Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">🎯</span>
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                      <span>{t.spotlightTitle}</span>
+                      <span className="text-xs bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full">
+                        NEW
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {t.spotlightSubtitle}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSpotlightJob(null)}
+                  className="text-xs text-slate-400 hover:text-slate-700 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-semibold transition"
+                >
+                  ✕ {t.spotlightClose}
+                </button>
+              </div>
 
-        {/* Filter and Search Bar */}
-        <FilterBar
-          currentFilter={filter}
-          onFilterChange={setFilter}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          currentSort={sort}
-          onSortChange={setSort}
-          totalFilteredCount={filteredAndSortedResults.length}
-          lang={lang}
-        />
+              {/* Body: Left details + Right score */}
+              <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left 2 columns: job info & signals */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div>
+                    <div className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">
+                      {spotlightJob.sourcePlatform || '日本職缺'}
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-snug">
+                      {spotlightJob.title}
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 mt-2">
+                      <span className="font-bold text-slate-900 text-sm">🏢 {spotlightJob.company}</span>
+                      {spotlightJob.location && <span>📍 {spotlightJob.location}</span>}
+                      {spotlightJob.salary && (
+                        <span className="font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                          💴 {spotlightJob.salary}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 4 Signals Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                    {spotlightJob.signals.map((sig) => (
+                      <div
+                        key={sig.id}
+                        className={`p-3.5 rounded-2xl border ${
+                          sig.triggered
+                            ? 'bg-amber-50/70 border-amber-200 text-amber-950'
+                            : 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between font-bold mb-1">
+                          <span>{sig.name}</span>
+                          <span className={sig.triggered ? 'text-amber-800 font-black' : 'text-emerald-800'}>
+                            {sig.label}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 leading-relaxed">{sig.explanation}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Actionable Recommendations Checklist (展開式直覺呈現) */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/70 border border-indigo-200 text-xs">
+                    <div className="font-black text-indigo-950 mb-2.5 flex items-center gap-2 text-sm">
+                      <span>🛡️</span>
+                      <span>{t.spotlightChecklist}</span>
+                    </div>
+                    <ul className="space-y-2">
+                      {spotlightJob.recommendations.map((rec, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-indigo-950 font-medium">
+                          <span className="text-indigo-600 mt-0.5 font-bold text-sm">☑</span>
+                          <span className="leading-relaxed">{rec}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Right column: Score summary & direct research buttons */}
+                <div className="p-6 rounded-2xl bg-slate-900 text-white flex flex-col justify-between shadow-md">
+                  <div>
+                    <div className="text-xs uppercase font-bold tracking-wider text-slate-400">
+                      {t.ghostScoreLabel}
+                    </div>
+                    <div className="text-5xl font-black mt-1">
+                      {spotlightJob.ghostScore}{' '}
+                      <span className="text-sm font-normal text-slate-400">/ 100</span>
+                    </div>
+                    <div className="mt-3">
+                      <span
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-black uppercase ${
+                          spotlightJob.ghostScore >= 70
+                            ? 'bg-red-500 text-white'
+                            : spotlightJob.ghostScore >= 45
+                            ? 'bg-amber-500 text-slate-950'
+                            : 'bg-emerald-500 text-white'
+                        }`}
+                      >
+                        {spotlightJob.verdict}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-3 leading-relaxed">
+                      {spotlightJob.verdictLabel}
+                    </p>
+                  </div>
+
+                  {/* Direct Action Links */}
+                  <div className="mt-6 pt-5 border-t border-slate-800 space-y-2.5">
+                    <div className="text-[11px] font-bold text-slate-400">
+                      💡 投遞前必查官方與口碑來源：
+                    </div>
+                    {spotlightJob.openWorkUrl && (
+                      <a
+                        href={spotlightJob.openWorkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-md"
+                      >
+                        <span>🏢</span>
+                        <span>在 OpenWork 查詢真實評價</span>
+                      </a>
+                    )}
+                    {spotlightJob.googleReviewUrl && (
+                      <a
+                        href={spotlightJob.googleReviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition border border-slate-700"
+                      >
+                        <span>🔍</span>
+                        <span>在 Google 搜尋該公司爭議/口碑</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 📚 開闔式範例庫切換列 (Collapsible Demo Section) */}
+        <div className="mb-6 p-4 rounded-2xl bg-white border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+          <div>
+            <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <span>📚</span>
+              <span>{isDemoExpanded ? t.demoToggleCollapse : t.demoToggleExpand}</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {t.demoDescription}
+            </p>
+          </div>
+          <button
+            onClick={() => setIsDemoExpanded(!isDemoExpanded)}
+            className="px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition whitespace-nowrap border border-indigo-200"
+          >
+            {isDemoExpanded
+              ? lang === 'ja'
+                ? 'サンプルを閉じる ▴'
+                : '收合範例 ▴'
+              : lang === 'ja'
+              ? 'サンプルを開く ▾'
+              : '展開範例 ▾'}
+          </button>
+        </div>
+
+        {/* Summary Statistics (有職缺時才顯示統計數據) */}
+        {summary && activeJobs.length > 0 && (
+          <SummaryStats
+            summary={summary}
+            onFilterClick={(cat) => setFilter(cat as FilterCategory)}
+            lang={lang}
+          />
+        )}
+
+        {/* Filter and Search Bar (有職缺時顯示篩選器) */}
+        {activeJobs.length > 0 && (
+          <FilterBar
+            currentFilter={filter}
+            onFilterChange={setFilter}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            currentSort={sort}
+            onSortChange={setSort}
+            totalFilteredCount={filteredAndSortedResults.length}
+            lang={lang}
+          />
+        )}
 
         {/* Loading Indicator */}
         {isLoading ? (
@@ -492,6 +699,33 @@ export default function HomePage() {
                 ? 'ATS認証、固定残業代、精神論ワードベースを照合中...'
                 : '正在交叉核對日本 ATS、みなし残業與黑心特徵庫...'}
             </p>
+          </div>
+        ) : activeJobs.length === 0 ? (
+          /* Empty State when no jobs loaded */
+          <div className="bg-white rounded-3xl border border-slate-200 p-10 sm:p-14 text-center text-slate-500 shadow-sm max-w-2xl mx-auto">
+            <span className="text-5xl block mb-3">🗾</span>
+            <h3 className="font-bold text-slate-800 text-lg">
+              {lang === 'ja' ? '求人を貼り付けて即時診断を開始' : '貼上日本職缺網址或文字開始診斷'}
+            </h3>
+            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+              {lang === 'ja'
+                ? '上部のURL入力欄に求人URLを貼り付けるか、「求人テキスト直接診断」から求人票を貼り付けてください。日本の労働基準法と最新の求人実態に即して瞬時にゴースト度を判定します。'
+                : '請在上方輸入框貼入 Indeed / LinkedIn / Green / doda / 企業招募網址，或點擊「貼上職缺文字」直接貼上求人票。系統將依據日本勞基法與招募市場實態瞬時給出客觀評估。'}
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={() => setIsSingleJobModalOpen(true)}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 transition shadow-sm"
+              >
+                {t.pasteTextBtn}
+              </button>
+              <button
+                onClick={() => setIsDemoExpanded(true)}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition border border-slate-200"
+              >
+                {t.demoToggleExpand}
+              </button>
+            </div>
           </div>
         ) : filteredAndSortedResults.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500 shadow-sm">

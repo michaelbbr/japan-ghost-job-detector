@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { JobInput } from '@/lib/ghostScoreEngine';
 import { Language } from '@/lib/i18n';
+import { parseJapaneseJobText } from '@/lib/jobTextParser';
 
 interface SingleJobModalProps {
   isOpen: boolean;
@@ -67,17 +68,9 @@ export const SingleJobModal: React.FC<SingleJobModalProps> = ({
       return;
     }
 
-    const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
-    const parsedTitle = lines[0] || (isJa ? '直接貼付求人' : '貼上職缺檢測');
-    const parsedCompany = lines[1] || (isJa ? '企業名未指定' : '未指定企業名');
-
-    onSubmitJob({
-      title: parsedTitle,
-      company: parsedCompany,
-      description: rawText,
-      sourcePlatform: isJa ? 'テキスト貼付' : '文字直接貼上',
-      postedDate: new Date().toISOString().split('T')[0],
-    });
+    // 採用日本求職智慧解析器，精準提取職種名、公司名、地點、薪資與殘業條款
+    const parsedJob = parseJapaneseJobText(rawText);
+    onSubmitJob(parsedJob);
     onClose();
   };
 

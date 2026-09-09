@@ -237,17 +237,6 @@ export const JobCard: React.FC<JobCardProps> = ({ job, lang = 'zh' }) => {
               <span>{t.googleReviewBtn}</span>
             </a>
           )}
-          {job.applyUrl && (
-            <a
-              href={job.applyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs px-2.5 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition font-medium flex items-center gap-1"
-            >
-              <span>🔗</span>
-              <span>{t.originalJobBtn}</span>
-            </a>
-          )}
         </div>
       </div>
 

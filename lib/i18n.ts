@@ -20,6 +20,15 @@ export const I18N = {
     downloadSampleBtn: '下載範例 CSV',
     viewGuideBtn: '看日本都啥求職 (完整導覽)',
 
+    // Spotlight & Demo Toggles
+    spotlightTitle: '🎯 您剛診斷的日本職缺即時分析報告',
+    spotlightSubtitle: '已為您自動拆解薪資條款、固定加班、客先常駐與採用系統驗證',
+    spotlightChecklist: '🛡️ 建議求職者立即採取的防坑行動：',
+    spotlightClose: '關閉此報告',
+    demoToggleExpand: '📂 展開日本求職市場常見陷阱對比範例 (10筆) ▾',
+    demoToggleCollapse: '📁 收合參考範例 (專注檢視您的職缺) ▴',
+    demoDescription: '系統內建 10 筆日本真實市場對比案例（涵蓋 Mercari 官方直招、Indeed 派遣洗版、45H+固定殘業黑心企業、Hello Work 假缺等）',
+
     // Summary stats
     summaryTitle: '批次分析統計數據總覽',
     summarySubtitle: (count: number) => `共檢測 ${count} 筆日本職缺，採多維度企業招募與勞動法規交叉驗證`,
@@ -121,6 +130,15 @@ export const I18N = {
     pasteTextBtn: '求人テキスト直接診断',
     downloadSampleBtn: 'サンプルCSVダウンロード',
     viewGuideBtn: '日本の求人媒体・仕組みガイド',
+
+    // Spotlight & Demo Toggles
+    spotlightTitle: '🎯 直近の求人診断・即時リスク判定レポート',
+    spotlightSubtitle: '給与体系、固定残業代、SES客先常駐、ATS正規認証を多角的に解析しました',
+    spotlightChecklist: '🛡️ 応募前に確認すべきセーフティアクション：',
+    spotlightClose: 'この診断レポートを閉じる',
+    demoToggleExpand: '📂 日本の求人リスク参考サンプルを展開 (10件) ▾',
+    demoToggleCollapse: '📁 サンプル求人を閉じる (自分の求人に集中) ▴',
+    demoDescription: 'Mercari公式採用、Indeed派遣使い回し、固定残業60Hブラック企業、ハローワーク助成金カラ求人等の実例10件',
 
     // Summary stats
     summaryTitle: '求人分析サマリー・統計ダッシュボード',
